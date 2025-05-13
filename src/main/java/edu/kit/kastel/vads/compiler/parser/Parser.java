@@ -46,6 +46,9 @@ public class Parser {
     private FunctionTree parseFunction() {
         Keyword returnType = this.tokenSource.expectKeyword(KeywordType.INT);
         Identifier identifier = this.tokenSource.expectIdentifier();
+        if (!identifier.value().equals("main")) {
+            throw new ParseException("expected main function but got " + identifier);
+        }
         this.tokenSource.expectSeparator(SeparatorType.PAREN_OPEN);
         this.tokenSource.expectSeparator(SeparatorType.PAREN_CLOSE);
 
