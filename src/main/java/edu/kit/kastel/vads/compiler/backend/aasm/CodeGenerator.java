@@ -103,7 +103,7 @@ public class CodeGenerator {
         String left = PhysicalRegisterMapper.map(registers.get(predecessorSkipProj(node, BinaryOperationNode.LEFT)));
         String right = PhysicalRegisterMapper.map(registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
 
-        builder.append("movl ")
+        builder.append("    movl ")
                 .append(left)
                 .append(", ")
                 .append(registers.get(node))
@@ -134,10 +134,14 @@ public class CodeGenerator {
             builder.append("    movl ").append(left).append(", %eax\n");
         }
 
-        builder.append("cltd\n")
-                .append("idivl ").append(right).append("\n")
-                .append("movl %").append(node instanceof ModNode ? "edx" : "eax")
-                .append(", ").append(result).append("\n");
+        builder.append("    cltd\n")
+                .append("    idivl ").append(right).append("\n");
+
+        if (node instanceof ModNode) {
+            builder.append("    movl %edx, ").append(result).append("\n");
+        } else {
+            builder.append("    movl %eax, ").append(result).append("\n");
+        }
     }
 
     private void generateReturn(StringBuilder builder, Map<Node, Register> registers, ReturnNode node) {
@@ -145,13 +149,17 @@ public class CodeGenerator {
                 registers.get(predecessorSkipProj(node, ReturnNode.RESULT)));
 
         if (!resultRegister.equals("%eax")) {
-            builder.append("movl").append(resultRegister).append(", %eax\n");
+            builder.append("    movl ").append(resultRegister).append(", %eax\n");
         }
     }
 
     private void generateConstant(StringBuilder builder, Map<Node, Register> registers, ConstIntNode node) {
         String dest = PhysicalRegisterMapper.map(registers.get(node));
-        builder.append("movl $").append(node.value()).append(", ").append(dest).append("\n");
+        builder.append("    movl $")
+                .append(node.value())
+                .append(", ")
+                .append(dest)
+                .append("\n");
     }
 
 }
