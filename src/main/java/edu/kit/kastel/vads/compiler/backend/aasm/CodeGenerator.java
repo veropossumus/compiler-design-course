@@ -27,6 +27,16 @@ public class CodeGenerator {
 
     public String generateCode(List<IrGraph> program) {
         StringBuilder builder = new StringBuilder();
+
+        builder.append(".global _main\n")
+              .append(".text\n")
+              .append("main:\n")
+              .append("call _main\n")
+              .append("movq %rax, %rdi\n")
+              .append("movq $0x3C, %rax\n")
+              .append("syscall\n")
+              .append("_main:\n");
+
         for (IrGraph graph : program) {
             AasmRegisterAllocator allocator = new AasmRegisterAllocator();
             Map<Node, Register> registers = allocator.allocateRegisters(graph);
@@ -55,12 +65,29 @@ public class CodeGenerator {
             case AddNode add -> binary(builder, registers, add, "add");
             case SubNode sub -> binary(builder, registers, sub, "sub");
             case MulNode mul -> binary(builder, registers, mul, "mul");
-            case DivNode div -> binary(builder, registers, div, "div");
-            case ModNode mod -> { //binary(builder, registers, mod, "mod");
-                Register right = registers.get(predecessorSkipProj(mod, BinaryOperationNode.RIGHT));
-                builder.repeat(" ", 2).append("if ").append(right).append(" == 0 goto _divzero\n");
-                binary(builder, registers, mod, "mod");
+            case DivNode div -> {
+                Register right = registers.get(predecessorSkipProj(div, BinaryOperationNode.RIGHT));
+                builder.append("cmpl $0, ").append(right).append("\n")
+                      .append("e _divzero\n");
+                builder.append("movl ").append(registers.get(predecessorSkipProj(div, BinaryOperationNode.LEFT)))
+                      .append(", %eax\n")
+                      .append("cltd\n")
+                      .append("idivl ").append(right).append("\n")
+                      .append("movl %eax, ").append(registers.get(div)).append("\n");
             }
+            case ModNode mod -> {
+                Register right = registers.get(predecessorSkipProj(mod, BinaryOperationNode.RIGHT));
+                builder.append("cmpl $0, ").append(right).append("\n")
+                      .append("je _divzero\n");
+                builder.append("movl ").append(registers.get(predecessorSkipProj(mod, BinaryOperationNode.LEFT)))
+                      .append(", %eax\n")
+                      .append("cltd\n")
+                      .append("idivl ").append(right).append("\n")
+                      .append("movl %edx, ").append(registers.get(mod)).append("\n");
+            }
+            // case DivNode div -> binary(builder, registers, div, "div");
+            // case ModNode mod -> binary(builder, registers, mod, "mod");
+
             case ReturnNode r -> builder.repeat(" ", 2).append("ret ")
                 .append(registers.get(predecessorSkipProj(r, ReturnNode.RESULT)));
             case ConstIntNode c -> builder.repeat(" ", 2)
