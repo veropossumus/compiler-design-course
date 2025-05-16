@@ -40,12 +40,17 @@ public class CodeGenerator {
         StringBuilder builder = new StringBuilder();
 
         builder.append(".global main\n")
-                .append(".global _main\n")
-                .append(".text\n")
-                .append("_main:\n")
-                .append("    pushq %rbp\n")
-                .append("    movq %rsp, %rbp\n")
-                .append("    subq $16, %rsp\n"); // Allocate stack space
+               .append(".global _main\n")
+               .append(".text\n")
+               .append("main:\n")
+               .append("    call _main\n")
+               .append("    movq %rax, %rdi\n")
+               .append("    movq $0x3C, %rax\n")
+               .append("    syscall\n")
+               .append("_main:\n")
+               .append("    pushq %rbp\n")
+               .append("    movq %rsp, %rbp\n")
+               .append("    subq $16, %rsp\n");
 
         for (IrGraph graph : program) {
             AasmRegisterAllocator allocator = new AasmRegisterAllocator();
@@ -54,13 +59,13 @@ public class CodeGenerator {
         }
 
         builder.append("    movq %rbp, %rsp\n")
-                .append("    popq %rbp\n")
-                .append("    ret\n");
+               .append("    popq %rbp\n")
+               .append("    ret\n");
 
         builder.append("_divzero:\n")
-                .append("    movq $1, %rdi\n")
-                .append("    movq $60, %rax\n")
-                .append("    syscall\n");
+               .append("    movq $1, %rdi\n")
+               .append("    movq $60, %rax\n")
+               .append("    syscall\n");
         return builder.toString();
     }
 
@@ -133,20 +138,17 @@ public class CodeGenerator {
                 .append("\n")
                 .append("    je _divzero\n");
 
-        // Move left operand to %eax
         if (!left.equals("%eax")) {
             builder.append("    movl ")
                     .append(left)
                     .append(", %eax\n");
         }
 
-        // Clear %edx for sign extension
         builder.append("    cltd\n")
                 .append("    idivl ")
                 .append(right)
                 .append("\n");
 
-        // Move result to destination register
         if (node instanceof ModNode) {
             builder.append("    movl %edx, ")
                     .append(result)
