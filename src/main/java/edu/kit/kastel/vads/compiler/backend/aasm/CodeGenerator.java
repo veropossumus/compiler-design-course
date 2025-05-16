@@ -43,7 +43,8 @@ public class CodeGenerator {
                 .append(".text\n")
                 .append("_main:\n")
                 .append("    pushq %rbp\n")
-                .append("    movq %rsp, %rbp\n");
+                .append("    movq %rsp, %rbp\n")
+                .append("    subq $16, %rsp\n"); // Allocate stack space
 
         for (IrGraph graph : program) {
             AasmRegisterAllocator allocator = new AasmRegisterAllocator();
@@ -102,18 +103,19 @@ public class CodeGenerator {
 
         String left = PhysicalRegisterMapper.map(registers.get(predecessorSkipProj(node, BinaryOperationNode.LEFT)));
         String right = PhysicalRegisterMapper.map(registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
+        String result = PhysicalRegisterMapper.map(registers.get(node));
 
         builder.append("    movl ")
                 .append(left)
                 .append(", ")
-                .append(registers.get(node))
+                .append(result)
                 .append("\n")
                 .append("    ")
                 .append(opcode)
                 .append(" ")
                 .append(right)
                 .append(", ")
-                .append(registers.get(node))
+                .append(result)
                 .append("\n");
     }
 
@@ -125,22 +127,33 @@ public class CodeGenerator {
                 registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
         String result = PhysicalRegisterMapper.map(registers.get(node));
 
-        builder.append("cmpl $0, ")
+        builder.append("    cmpl $0, ")
                 .append(right)
                 .append("\n")
-                .append("je _divzero\n");
+                .append("    je _divzero\n");
 
+        // Move left operand to %eax
         if (!left.equals("%eax")) {
-            builder.append("    movl ").append(left).append(", %eax\n");
+            builder.append("    movl ")
+                    .append(left)
+                    .append(", %eax\n");
         }
 
+        // Clear %edx for sign extension
         builder.append("    cltd\n")
-                .append("    idivl ").append(right).append("\n");
+                .append("    idivl ")
+                .append(right)
+                .append("\n");
 
+        // Move result to destination register
         if (node instanceof ModNode) {
-            builder.append("    movl %edx, ").append(result).append("\n");
+            builder.append("    movl %edx, ")
+                    .append(result)
+                    .append("\n");
         } else {
-            builder.append("    movl %eax, ").append(result).append("\n");
+            builder.append("    movl %eax, ")
+                    .append(result)
+                    .append("\n");
         }
     }
 
@@ -149,7 +162,9 @@ public class CodeGenerator {
                 registers.get(predecessorSkipProj(node, ReturnNode.RESULT)));
 
         if (!resultRegister.equals("%eax")) {
-            builder.append("    movl ").append(resultRegister).append(", %eax\n");
+            builder.append("    movl ")
+                    .append(resultRegister)
+                    .append(", %eax\n");
         }
     }
 
