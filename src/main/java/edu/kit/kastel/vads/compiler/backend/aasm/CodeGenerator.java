@@ -29,20 +29,20 @@ public class CodeGenerator {
         StringBuilder builder = new StringBuilder();
 
         builder.append(".global _main\n")
-              .append(".text\n")
-              .append("main:\n")
-              .append("call _main\n")
-              .append("movq %rax, %rdi\n")
-              .append("movq $0x3C, %rax\n")
-              .append("syscall\n")
-              .append("_main:\n");
+                .append(".text\n")
+                .append("main:\n")
+                .append("call _main\n")
+                .append("movq %rax, %rdi\n")
+                .append("movq $0x3C, %rax\n")
+                .append("syscall\n")
+                .append("_main:\n");
 
         for (IrGraph graph : program) {
             AasmRegisterAllocator allocator = new AasmRegisterAllocator();
             Map<Node, Register> registers = allocator.allocateRegisters(graph);
             builder.append("function ")
-                .append(graph.name())
-                .append(" {\n");
+                    .append(graph.name())
+                    .append(" {\n");
             generateForGraph(graph, builder, registers);
             builder.append("}");
         }
@@ -68,34 +68,46 @@ public class CodeGenerator {
             case DivNode div -> {
                 Register right = registers.get(predecessorSkipProj(div, BinaryOperationNode.RIGHT));
                 builder.append("cmpl $0, ").append(right).append("\n")
-                      .append("e _divzero\n");
+                        .append("e _divzero\n");
                 builder.append("movl ").append(registers.get(predecessorSkipProj(div, BinaryOperationNode.LEFT)))
-                      .append(", %eax\n")
-                      .append("cltd\n")
-                      .append("idivl ").append(right).append("\n")
-                      .append("movl %eax, ").append(registers.get(div)).append("\n");
+                        .append(", %eax\n")
+                        .append("cltd\n")
+                        .append("idivl ").append(right).append("\n")
+                        .append("movl %eax, ").append(registers.get(div)).append("\n");
             }
             case ModNode mod -> {
                 Register right = registers.get(predecessorSkipProj(mod, BinaryOperationNode.RIGHT));
                 builder.append("cmpl $0, ").append(right).append("\n")
-                      .append("je _divzero\n");
+                        .append("je _divzero\n");
                 builder.append("movl ").append(registers.get(predecessorSkipProj(mod, BinaryOperationNode.LEFT)))
-                      .append(", %eax\n")
-                      .append("cltd\n")
-                      .append("idivl ").append(right).append("\n")
-                      .append("movl %edx, ").append(registers.get(mod)).append("\n");
+                        .append(", %eax\n")
+                        .append("cltd\n")
+                        .append("idivl ").append(right).append("\n")
+                        .append("movl %edx, ").append(registers.get(mod)).append("\n");
             }
             // case DivNode div -> binary(builder, registers, div, "div");
             // case ModNode mod -> binary(builder, registers, mod, "mod");
 
-            case ReturnNode r -> builder.repeat(" ", 2).append("ret ")
-                .append(registers.get(predecessorSkipProj(r, ReturnNode.RESULT)));
-            case ConstIntNode c -> builder.repeat(" ", 2)
-                .append(registers.get(c))
-                .append(" = const ")
-                .append(c.value());
+            case ReturnNode r -> {
+                Register result = registers.get(predecessorSkipProj(ret, ReturnNode.RESULT));
+                builder.append("    movl ").append(result).append(", %eax\n");
+            }
+
+            // case ReturnNode r -> builder.repeat(" ", 2).append("ret ")
+            // .append(registers.get(predecessorSkipProj(r, ReturnNode.RESULT)));
+
+            case ConstIntNode c -> {
+                Register dest = registers.get(c);
+                builder.append("movl $").append(c.value()).append(", ").append(dest).append("\n");
+            }
+
+            // case ConstIntNode c -> builder.repeat(" ", 2)
+            // .append(registers.get(c))
+            // .append(" = const ")
+            // .append(c.value());
+
             case Phi _ -> throw new UnsupportedOperationException("phi");
-            case Block _, ProjNode _, StartNode _ -> {
+            case Block _,ProjNode _,StartNode _ -> {
                 // do nothing, skip line break
                 return;
             }
@@ -104,17 +116,16 @@ public class CodeGenerator {
     }
 
     private static void binary(
-        StringBuilder builder,
-        Map<Node, Register> registers,
-        BinaryOperationNode node,
-        String opcode
-    ) {
+            StringBuilder builder,
+            Map<Node, Register> registers,
+            BinaryOperationNode node,
+            String opcode) {
         builder.repeat(" ", 2).append(registers.get(node))
-            .append(" = ")
-            .append(opcode)
-            .append(" ")
-            .append(registers.get(predecessorSkipProj(node, BinaryOperationNode.LEFT)))
-            .append(" ")
-            .append(registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
+                .append(" = ")
+                .append(opcode)
+                .append(" ")
+                .append(registers.get(predecessorSkipProj(node, BinaryOperationNode.LEFT)))
+                .append(" ")
+                .append(registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
     }
 }
