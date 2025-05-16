@@ -56,7 +56,11 @@ public class CodeGenerator {
             case SubNode sub -> binary(builder, registers, sub, "sub");
             case MulNode mul -> binary(builder, registers, mul, "mul");
             case DivNode div -> binary(builder, registers, div, "div");
-            case ModNode mod -> binary(builder, registers, mod, "mod");
+            case ModNode mod -> { //binary(builder, registers, mod, "mod");
+                Register right = registers.get(predecessorSkipProj(mod, BinaryOperationNode.RIGHT));
+                builder.repeat(" ", 2).append("if ").append(right).append(" == 0 goto _divzero\n");
+                binary(builder, registers, mod, "mod");
+            }
             case ReturnNode r -> builder.repeat(" ", 2).append("ret ")
                 .append(registers.get(predecessorSkipProj(r, ReturnNode.RESULT)));
             case ConstIntNode c -> builder.repeat(" ", 2)
