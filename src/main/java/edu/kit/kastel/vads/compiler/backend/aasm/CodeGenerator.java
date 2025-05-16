@@ -39,7 +39,8 @@ public class CodeGenerator {
     public String generateCode(List<IrGraph> program) {
         StringBuilder builder = new StringBuilder();
 
-        builder.append(".global _main\n")
+        builder.append(".global main\n")
+                .append(".global _main\n")
                 .append(".text\n")
                 .append("_main:\n")
                 .append("    pushq %rbp\n")
