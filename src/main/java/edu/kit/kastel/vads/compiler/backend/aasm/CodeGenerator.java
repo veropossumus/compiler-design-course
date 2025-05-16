@@ -89,7 +89,7 @@ public class CodeGenerator {
             // case ModNode mod -> binary(builder, registers, mod, "mod");
 
             case ReturnNode r -> {
-                Register result = registers.get(predecessorSkipProj(ret, ReturnNode.RESULT));
+                Register result = registers.get(predecessorSkipProj(r, ReturnNode.RESULT));
                 builder.append("    movl ").append(result).append(", %eax\n");
             }
 
