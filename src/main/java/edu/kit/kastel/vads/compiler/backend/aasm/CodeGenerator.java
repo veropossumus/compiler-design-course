@@ -25,6 +25,17 @@ import static edu.kit.kastel.vads.compiler.ir.util.NodeSupport.predecessorSkipPr
 
 public class CodeGenerator {
 
+    private static class PhysicalRegisterMapper {
+        private static final String[] PHYSICAL_REGISTERS = { "%eax", "%ebx", "%ecx", "%edx", "%esi", "%edi" };
+
+        public static String map(Register reg) {
+            if (reg instanceof VirtualRegister vr) {
+                return PHYSICAL_REGISTERS[vr.id() % PHYSICAL_REGISTERS.length];
+            }
+            return reg.toString();
+        }
+    }
+
     public String generateCode(List<IrGraph> program) {
         StringBuilder builder = new StringBuilder();
 
@@ -40,11 +51,7 @@ public class CodeGenerator {
         for (IrGraph graph : program) {
             AasmRegisterAllocator allocator = new AasmRegisterAllocator();
             Map<Node, Register> registers = allocator.allocateRegisters(graph);
-            builder.append("function ")
-                    .append(graph.name())
-                    .append(" {\n");
             generateForGraph(graph, builder, registers);
-            builder.append("}");
         }
         return builder.toString();
     }
@@ -62,49 +69,15 @@ public class CodeGenerator {
         }
 
         switch (node) {
-            case AddNode add -> binary(builder, registers, add, "add");
-            case SubNode sub -> binary(builder, registers, sub, "sub");
-            case MulNode mul -> binary(builder, registers, mul, "mul");
-            case DivNode div -> {
-                Register right = registers.get(predecessorSkipProj(div, BinaryOperationNode.RIGHT));
-                builder.append("cmpl $0, ").append(right).append("\n")
-                        .append("e _divzero\n");
-                builder.append("movl ").append(registers.get(predecessorSkipProj(div, BinaryOperationNode.LEFT)))
-                        .append(", %eax\n")
-                        .append("cltd\n")
-                        .append("idivl ").append(right).append("\n")
-                        .append("movl %eax, ").append(registers.get(div)).append("\n");
-            }
-            case ModNode mod -> {
-                Register right = registers.get(predecessorSkipProj(mod, BinaryOperationNode.RIGHT));
-                builder.append("cmpl $0, ").append(right).append("\n")
-                        .append("je _divzero\n");
-                builder.append("movl ").append(registers.get(predecessorSkipProj(mod, BinaryOperationNode.LEFT)))
-                        .append(", %eax\n")
-                        .append("cltd\n")
-                        .append("idivl ").append(right).append("\n")
-                        .append("movl %edx, ").append(registers.get(mod)).append("\n");
-            }
-            // case DivNode div -> binary(builder, registers, div, "div");
-            // case ModNode mod -> binary(builder, registers, mod, "mod");
+            case AddNode add -> binary(builder, registers, add, "addl");
+            case SubNode sub -> binary(builder, registers, sub, "subl");
+            case MulNode mul -> binary(builder, registers, mul, "imull");
 
-            case ReturnNode r -> {
-                Register result = registers.get(predecessorSkipProj(r, ReturnNode.RESULT));
-                builder.append("    movl ").append(result).append(", %eax\n");
-            }
+            case DivNode div -> binaryDivMod(builder, registers, div);
+            case ModNode mod -> binaryDivMod(builder, registers, mod);
 
-            // case ReturnNode r -> builder.repeat(" ", 2).append("ret ")
-            // .append(registers.get(predecessorSkipProj(r, ReturnNode.RESULT)));
-
-            case ConstIntNode c -> {
-                Register dest = registers.get(c);
-                builder.append("movl $").append(c.value()).append(", ").append(dest).append("\n");
-            }
-
-            // case ConstIntNode c -> builder.repeat(" ", 2)
-            // .append(registers.get(c))
-            // .append(" = const ")
-            // .append(c.value());
+            case ReturnNode ret -> generateReturn(builder, registers, ret);
+            case ConstIntNode c -> generateConstant(builder, registers, c);
 
             case Phi _ -> throw new UnsupportedOperationException("phi");
             case Block _,ProjNode _,StartNode _ -> {
@@ -120,12 +93,55 @@ public class CodeGenerator {
             Map<Node, Register> registers,
             BinaryOperationNode node,
             String opcode) {
-        builder.repeat(" ", 2).append(registers.get(node))
-                .append(" = ")
+
+        String left = PhysicalRegisterMapper.map(registers.get(predecessorSkipProj(node, BinaryOperationNode.LEFT)));
+        String right = PhysicalRegisterMapper.map(registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
+
+        builder.append("movl ")
+                .append(left)
+                .append(", ")
+                .append(registers.get(node))
+                .append("\n")
+                .append("    ")
                 .append(opcode)
                 .append(" ")
-                .append(registers.get(predecessorSkipProj(node, BinaryOperationNode.LEFT)))
-                .append(" ")
-                .append(registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
+                .append(right)
+                .append(", ")
+                .append(registers.get(node))
+                .append("\n");
     }
+
+    private void binaryDivMod(StringBuilder builder, Map<Node, Register> registers,
+            BinaryOperationNode node) {
+        String left = PhysicalRegisterMapper.map(
+                registers.get(predecessorSkipProj(node, BinaryOperationNode.LEFT)));
+        String right = PhysicalRegisterMapper.map(
+                registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
+        String result = PhysicalRegisterMapper.map(registers.get(node));
+
+        builder.append("cmpl $0, ")
+                .append(right)
+                .append("\n")
+                .append("je _divzero\n")
+                .append("movl ").append(left).append(", %eax\n")
+                .append("cltd\n")
+                .append("idivl ").append(right).append("\n")
+                .append("movl %").append(node instanceof ModNode ? "edx" : "eax")
+                .append(", ").append(result).append("\n");
+    }
+
+    private void generateReturn(StringBuilder builder, Map<Node, Register> registers, ReturnNode node) {
+        String resultRegister = PhysicalRegisterMapper.map(
+                registers.get(predecessorSkipProj(node, ReturnNode.RESULT)));
+
+        if (!resultRegister.equals("%eax")) {
+            builder.append("movl").append(resultRegister).append(", %eax\n");
+        }
+    }
+
+    private void generateConstant(StringBuilder builder, Map<Node, Register> registers, ConstIntNode node) {
+        String dest = PhysicalRegisterMapper.map(registers.get(node));
+        builder.append("movl $").append(node.value()).append(", ").append(dest).append("\n");
+    }
+
 }
