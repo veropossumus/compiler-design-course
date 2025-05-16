@@ -41,18 +41,24 @@ public class CodeGenerator {
 
         builder.append(".global _main\n")
                 .append(".text\n")
-                .append("main:\n")
-                .append("call _main\n")
-                .append("movq %rax, %rdi\n")
-                .append("movq $0x3C, %rax\n")
-                .append("syscall\n")
-                .append("_main:\n");
+                .append("_main:\n")
+                .append("    pushq %rbp\n")
+                .append("    movq %rsp, %rbp\n");
 
         for (IrGraph graph : program) {
             AasmRegisterAllocator allocator = new AasmRegisterAllocator();
             Map<Node, Register> registers = allocator.allocateRegisters(graph);
             generateForGraph(graph, builder, registers);
         }
+
+        builder.append("    movq %rbp, %rsp\n")
+                .append("    popq %rbp\n")
+                .append("    ret\n");
+
+        builder.append("_divzero:\n")
+                .append("    movq $1, %rdi\n")
+                .append("    movq $60, %rax\n")
+                .append("    syscall\n");
         return builder.toString();
     }
 
@@ -122,9 +128,13 @@ public class CodeGenerator {
         builder.append("cmpl $0, ")
                 .append(right)
                 .append("\n")
-                .append("je _divzero\n")
-                .append("movl ").append(left).append(", %eax\n")
-                .append("cltd\n")
+                .append("je _divzero\n");
+
+        if (!left.equals("%eax")) {
+            builder.append("    movl ").append(left).append(", %eax\n");
+        }
+
+        builder.append("cltd\n")
                 .append("idivl ").append(right).append("\n")
                 .append("movl %").append(node instanceof ModNode ? "edx" : "eax")
                 .append(", ").append(result).append("\n");
