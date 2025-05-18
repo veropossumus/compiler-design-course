@@ -9,13 +9,10 @@ import edu.kit.kastel.vads.compiler.ir.node.ProjNode;
 import edu.kit.kastel.vads.compiler.ir.node.ReturnNode;
 import edu.kit.kastel.vads.compiler.ir.node.StartNode;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class AasmRegisterAllocator implements RegisterAllocator {
-    private int id;
+    private int id = 0;
     private final Map<Node, Register> registers = new HashMap<>();
 
     @Override
@@ -23,7 +20,7 @@ public class AasmRegisterAllocator implements RegisterAllocator {
         Set<Node> visited = new HashSet<>();
         visited.add(graph.endBlock());
         scan(graph.endBlock(), visited);
-        return Map.copyOf(this.registers);
+        return Map.copyOf(registers);
     }
 
     private void scan(Node node, Set<Node> visited) {

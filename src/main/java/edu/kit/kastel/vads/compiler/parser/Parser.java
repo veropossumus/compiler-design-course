@@ -44,6 +44,10 @@ public class Parser {
         if (this.tokenSource.hasMore()) {
             throw new ParseException("expected end of input but got " + this.tokenSource.peek());
         }
+        if (!programTree.topLevelTrees().stream()
+            .anyMatch(function -> function.name().name().asString().equals("main"))) {
+            throw new ParseException("no main function");
+        }
         return programTree;
     }
 
