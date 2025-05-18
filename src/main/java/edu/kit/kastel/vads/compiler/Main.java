@@ -50,8 +50,24 @@ public class Main {
         }
 
         // TODO: generate assembly and invoke gcc instead of generating abstract assembly
-        String s = new CodeGenerator().generateCode(graphs);
-        Files.writeString(output, s);
+        String asm = new CodeGenerator().generateCode(graphs);
+        Path asmFile = output.resolveSibling(output.getFileName().toString() + ".s");
+        Files.writeString(asmFile, asm);
+
+        Process gcc = new ProcessBuilder("gcc", "-no-pie", asmFile.toString(), "-o", output.toString())
+            .inheritIO()
+            .start();
+        try {
+            int exit = gcc.waitFor();
+            if (exit != 0) {
+                System.err.println("gcc failed with exit code " + exit);
+                System.exit(exit);
+            }
+        } catch (InterruptedException e) {
+            System.err.println("gcc was interrupted: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     private static ProgramTree lexAndParse(Path input) throws IOException {

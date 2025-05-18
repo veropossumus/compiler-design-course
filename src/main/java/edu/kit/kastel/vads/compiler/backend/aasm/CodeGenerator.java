@@ -26,7 +26,7 @@ import static edu.kit.kastel.vads.compiler.ir.util.NodeSupport.predecessorSkipPr
 public class CodeGenerator {
 
     private static class PhysicalRegisterMapper {
-        private static final String[] PHYSICAL_REGISTERS = { "%eax", "%ebx", "%ecx", "%edx", "%esi", "%edi" };
+        private static final String[] PHYSICAL_REGISTERS = { "%ebx", "%ecx", "%esi", "%edi" };
 
         public static String map(Register reg) {
             if (reg instanceof VirtualRegister vr) {
@@ -39,9 +39,9 @@ public class CodeGenerator {
     public String generateCode(List<IrGraph> program) {
         StringBuilder builder = new StringBuilder();
 
-        builder.append(".global main\n")
+        builder.append(".section .text\n")
+               .append(".global main\n")
                .append(".global _main\n")
-               .append(".text\n")
                .append("main:\n")
                .append("    call _main\n")
                .append("    movq %rax, %rdi\n")
@@ -50,7 +50,11 @@ public class CodeGenerator {
                .append("_main:\n")
                .append("    pushq %rbp\n")
                .append("    movq %rsp, %rbp\n")
-               .append("    subq $16, %rsp\n");
+               .append("    pushq %rbx\n")
+               .append("    pushq %rcx\n")
+               .append("    pushq %rsi\n")
+               .append("    pushq %rdi\n")
+               .append("    subq $32, %rsp\n");
 
         for (IrGraph graph : program) {
             AasmRegisterAllocator allocator = new AasmRegisterAllocator();
@@ -58,14 +62,14 @@ public class CodeGenerator {
             generateForGraph(graph, builder, registers);
         }
 
-        builder.append("    movq %rbp, %rsp\n")
+        builder.append("    addq $32, %rsp\n")
+               .append("    popq %rdi\n")
+               .append("    popq %rsi\n")
+               .append("    popq %rcx\n")
+               .append("    popq %rbx\n")
+               .append("    movq %rbp, %rsp\n")
                .append("    popq %rbp\n")
                .append("    ret\n");
-
-        builder.append("_divzero:\n")
-               .append("    movq $1, %rdi\n")
-               .append("    movq $60, %rax\n")
-               .append("    syscall\n");
         return builder.toString();
     }
 
@@ -76,19 +80,21 @@ public class CodeGenerator {
 
     private void scan(Node node, Set<Node> visited, StringBuilder builder, Map<Node, Register> registers) {
         for (Node predecessor : node.predecessors()) {
-            if (visited.add(predecessor)) {
+            if (!visited.contains(predecessor)) {
                 scan(predecessor, visited, builder, registers);
             }
+        }
+
+        if (!visited.add(node)) {
+            return;
         }
 
         switch (node) {
             case AddNode add -> binary(builder, registers, add, "addl");
             case SubNode sub -> binary(builder, registers, sub, "subl");
             case MulNode mul -> binary(builder, registers, mul, "imull");
-
             case DivNode div -> binaryDivMod(builder, registers, div);
             case ModNode mod -> binaryDivMod(builder, registers, mod);
-
             case ReturnNode ret -> generateReturn(builder, registers, ret);
             case ConstIntNode c -> generateConstant(builder, registers, c);
 
@@ -107,22 +113,120 @@ public class CodeGenerator {
             BinaryOperationNode node,
             String opcode) {
 
-        String left = PhysicalRegisterMapper.map(registers.get(predecessorSkipProj(node, BinaryOperationNode.LEFT)));
-        String right = PhysicalRegisterMapper.map(registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
+        Node leftNode = predecessorSkipProj(node, BinaryOperationNode.LEFT);
+        Node rightNode = predecessorSkipProj(node, BinaryOperationNode.RIGHT);
+        String left = PhysicalRegisterMapper.map(registers.get(leftNode));
         String result = PhysicalRegisterMapper.map(registers.get(node));
 
-        builder.append("    movl ")
-                .append(left)
-                .append(", ")
-                .append(result)
-                .append("\n")
-                .append("    ")
-                .append(opcode)
-                .append(" ")
-                .append(right)
-                .append(", ")
-                .append(result)
-                .append("\n");
+        if (leftNode instanceof ConstIntNode lc && rightNode instanceof ConstIntNode rc) {
+            int folded = switch (opcode) {
+                case "addl" -> lc.value() + rc.value();
+                case "subl" -> lc.value() - rc.value();
+                case "imull" -> lc.value() * rc.value();
+                default -> throw new IllegalStateException("This shouldn't happen hopefully");
+            };
+            builder.append("    movl $").append(folded).append(", ").append(result).append("\n");
+            return;
+        }
+
+        if (opcode.equals("subl")) {
+            if (leftNode instanceof ConstIntNode leftConst && leftConst.value() == 0) {
+                if (rightNode instanceof ConstIntNode constNode) {
+                    builder.append("    movl $")
+                            .append(-constNode.value())
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                } else {
+                    String right = PhysicalRegisterMapper.map(registers.get(rightNode));
+                    if (!result.equals(right)) {
+                        builder.append("    movl ")
+                                .append(right)
+                                .append(", ")
+                                .append(result)
+                                .append("\n");
+                    }
+                    builder.append("    negl ")
+                            .append(result)
+                            .append("\n");
+                }
+            } else {
+                if (!result.equals(left)) {
+                    builder.append("    movl ")
+                            .append(left)
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                }
+                if (rightNode instanceof ConstIntNode constNode) {
+                    builder.append("    subl $")
+                            .append(constNode.value())
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                } else {
+                    String right = PhysicalRegisterMapper.map(registers.get(rightNode));
+                    builder.append("    subl ")
+                            .append(right)
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                }
+            }
+        } else {
+            if (!result.equals(left)) {
+                builder.append("    movl ")
+                        .append(left)
+                        .append(", ")
+                        .append(result)
+                        .append("\n");
+            }
+
+            if (rightNode instanceof ConstIntNode constNode) {
+                builder.append("    ")
+                        .append(opcode)
+                        .append(" $")
+                        .append(constNode.value())
+                        .append(", ")
+                        .append(result)
+                        .append("\n");
+            } else {
+                String right = PhysicalRegisterMapper.map(registers.get(rightNode));
+                if (opcode.equals("imull")) {
+                    builder.append("    pushq %rax\n"); 
+                    builder.append("    pushq %rdx\n");
+                    
+                    // %eax for multiplication
+                    if (!result.equals("%eax")) {
+                        builder.append("    movl ")
+                               .append(result)
+                               .append(", %eax\n");
+                    }
+                    
+                    builder.append("    imull ")
+                           .append(right)
+                           .append("\n");
+                    
+                    // move back
+                    if (!result.equals("%eax")) {
+                        builder.append("    movl %eax, ")
+                               .append(result)
+                               .append("\n");
+                    }
+                    
+                    builder.append("    popq %rdx\n"); 
+                    builder.append("    popq %rax\n");
+                } else {
+                    builder.append("    ")
+                            .append(opcode)
+                            .append(" ")
+                            .append(right)
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                }
+            }
+        }
     }
 
     private void binaryDivMod(StringBuilder builder, Map<Node, Register> registers,
@@ -133,22 +237,20 @@ public class CodeGenerator {
                 registers.get(predecessorSkipProj(node, BinaryOperationNode.RIGHT)));
         String result = PhysicalRegisterMapper.map(registers.get(node));
 
-        builder.append("    cmpl $0, ")
-                .append(right)
-                .append("\n")
-                .append("    je _divzero\n");
+        builder.append("    pushq %rax\n");
+        builder.append("    pushq %rdx\n");
 
-        if (!left.equals("%eax")) {
-            builder.append("    movl ")
-                    .append(left)
-                    .append(", %eax\n");
-        }
+        // %eax for division
+        builder.append("    movl ")
+                .append(left)
+                .append(", %eax\n");
+        builder.append("    cltd\n");
 
-        builder.append("    cltd\n")
-                .append("    idivl ")
+        builder.append("    idivl ")
                 .append(right)
                 .append("\n");
 
+        // move back
         if (node instanceof ModNode) {
             builder.append("    movl %edx, ")
                     .append(result)
@@ -158,26 +260,27 @@ public class CodeGenerator {
                     .append(result)
                     .append("\n");
         }
+
+        builder.append("    popq %rdx\n");
+        builder.append("    popq %rax\n");
     }
 
     private void generateReturn(StringBuilder builder, Map<Node, Register> registers, ReturnNode node) {
         String resultRegister = PhysicalRegisterMapper.map(
                 registers.get(predecessorSkipProj(node, ReturnNode.RESULT)));
 
-        if (!resultRegister.equals("%eax")) {
-            builder.append("    movl ")
-                    .append(resultRegister)
-                    .append(", %eax\n");
-        }
+        builder.append("    movl ")
+                .append(resultRegister)
+                .append(", %eax\n");
     }
 
     private void generateConstant(StringBuilder builder, Map<Node, Register> registers, ConstIntNode node) {
         String dest = PhysicalRegisterMapper.map(registers.get(node));
+
         builder.append("    movl $")
                 .append(node.value())
                 .append(", ")
                 .append(dest)
                 .append("\n");
     }
-
 }
