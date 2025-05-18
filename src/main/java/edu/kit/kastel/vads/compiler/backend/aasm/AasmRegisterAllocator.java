@@ -12,7 +12,7 @@ import edu.kit.kastel.vads.compiler.ir.node.StartNode;
 import java.util.*;
 
 public class AasmRegisterAllocator implements RegisterAllocator {
-    private int nextId = 0;
+    private int id = 0;
     private final Map<Node, Register> registers = new HashMap<>();
 
     @Override
@@ -24,14 +24,13 @@ public class AasmRegisterAllocator implements RegisterAllocator {
     }
 
     private void scan(Node node, Set<Node> visited) {
-        // Visit predecessors first (backwards traversal)
         for (Node predecessor : node.predecessors()) {
             if (visited.add(predecessor)) {
                 scan(predecessor, visited);
             }
         }
         if (needsRegister(node)) {
-            registers.put(node, new VirtualRegister(nextId++));
+            this.registers.put(node, new VirtualRegister(this.id++));
         }
     }
 

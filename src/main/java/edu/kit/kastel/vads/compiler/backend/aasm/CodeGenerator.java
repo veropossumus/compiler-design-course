@@ -51,9 +51,6 @@ public class CodeGenerator {
                .append("    pushq %rbp\n")
                .append("    movq %rsp, %rbp\n")
                .append("    pushq %rbx\n")
-               .append("    pushq %rcx\n")
-               .append("    pushq %rsi\n")
-               .append("    pushq %rdi\n")
                .append("    subq $32, %rsp\n");
 
         for (IrGraph graph : program) {
@@ -63,9 +60,6 @@ public class CodeGenerator {
         }
 
         builder.append("    addq $32, %rsp\n")
-               .append("    popq %rdi\n")
-               .append("    popq %rsi\n")
-               .append("    popq %rcx\n")
                .append("    popq %rbx\n")
                .append("    movq %rbp, %rsp\n")
                .append("    popq %rbp\n")
