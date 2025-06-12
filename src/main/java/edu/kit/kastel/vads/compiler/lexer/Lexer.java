@@ -36,12 +36,54 @@ public class Lexer {
             case '{' -> separator(SeparatorType.BRACE_OPEN);
             case '}' -> separator(SeparatorType.BRACE_CLOSE);
             case ';' -> separator(SeparatorType.SEMICOLON);
+
+            case '=' -> {
+                if (hasMore(1) && peek(1) == '=') yield new Operator(OperatorType.COMPARE_EQUAL, buildSpan(2));
+                yield new Operator(OperatorType.ASSIGN, buildSpan(1));
+            }
+            case '!' -> {
+                if (hasMore(1) && peek(1) == '=') yield new Operator(OperatorType.COMPARE_NOT_EQUAL, buildSpan(2));
+                yield new Operator(OperatorType.NOT, buildSpan(1));
+            }
+            case '<' -> {
+                if (hasMore(1) && peek(1) == '=') yield new Operator(OperatorType.COMPARE_LESS_EQUAL, buildSpan(2));
+                if (hasMore(1) && peek(1) == '<') {
+                    if (hasMore(2) && peek(2) == '=') yield new Operator(OperatorType.ASSIGN_SHIFT_LEFT, buildSpan(3));
+                    yield new Operator(OperatorType.SHIFT_LEFT, buildSpan(2));
+                }
+                yield new Operator(OperatorType.COMPARE_LESS, buildSpan(1));
+            }
+            case '>' -> {
+                if (hasMore(1) && peek(1) == '=') yield new Operator(OperatorType.COMPARE_GREATER_EQUAL, buildSpan(2));
+                if (hasMore(1) && peek(1) == '>') {
+                    if (hasMore(2) && peek(2) == '=') yield new Operator(OperatorType.ASSIGN_SHIFT_RIGHT, buildSpan(3));
+                    yield new Operator(OperatorType.SHIFT_RIGHT, buildSpan(2));
+                }
+                yield new Operator(OperatorType.COMPARE_GREATER, buildSpan(1));
+            }
+            case '&' -> {
+                if (hasMore(1) && peek(1) == '&') yield new Operator(OperatorType.AND, buildSpan(2));
+                if (hasMore(1) && peek(1) == '=') yield new Operator(OperatorType.ASSIGN_BITWISE_AND, buildSpan(2));
+                yield new Operator(OperatorType.BITWISE_AND, buildSpan(1));
+            }
+            case '|' -> {
+                if (hasMore(1) && peek(1) == '|') yield new Operator(OperatorType.OR, buildSpan(2));
+                if (hasMore(1) && peek(1) == '=') yield new Operator(OperatorType.ASSIGN_BITWISE_OR, buildSpan(2));
+                yield new Operator(OperatorType.BITWISE_OR, buildSpan(1));
+            }
+            case '^' -> {
+                if (hasMore(1) && peek(1) == '=') yield new Operator(OperatorType.ASSIGN_BITWISE_XOR, buildSpan(2));
+                yield new Operator(OperatorType.BITWISE_XOR, buildSpan(1));
+            }
+            case '?' -> new Operator(OperatorType.QUESTION, buildSpan(1));
+            case ':' -> new Operator(OperatorType.COLON, buildSpan(1));
+
             case '-' -> singleOrAssign(OperatorType.MINUS, OperatorType.ASSIGN_MINUS);
             case '+' -> singleOrAssign(OperatorType.PLUS, OperatorType.ASSIGN_PLUS);
             case '*' -> singleOrAssign(OperatorType.MUL, OperatorType.ASSIGN_MUL);
             case '/' -> singleOrAssign(OperatorType.DIV, OperatorType.ASSIGN_DIV);
             case '%' -> singleOrAssign(OperatorType.MOD, OperatorType.ASSIGN_MOD);
-            case '=' -> new Operator(OperatorType.ASSIGN, buildSpan(1));
+
             default -> {
                 if (isIdentifierChar(peek())) {
                     if (isNumeric(peek())) {

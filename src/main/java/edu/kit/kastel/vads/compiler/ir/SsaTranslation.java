@@ -10,9 +10,13 @@ import edu.kit.kastel.vads.compiler.ir.util.DebugInfoHelper;
 import edu.kit.kastel.vads.compiler.parser.ast.AssignmentTree;
 import edu.kit.kastel.vads.compiler.parser.ast.BinaryOperationTree;
 import edu.kit.kastel.vads.compiler.parser.ast.BlockTree;
+import edu.kit.kastel.vads.compiler.parser.ast.BreakTree;
+import edu.kit.kastel.vads.compiler.parser.ast.ContinueTree;
 import edu.kit.kastel.vads.compiler.parser.ast.DeclarationTree;
+import edu.kit.kastel.vads.compiler.parser.ast.ForTree;
 import edu.kit.kastel.vads.compiler.parser.ast.FunctionTree;
 import edu.kit.kastel.vads.compiler.parser.ast.IdentExpressionTree;
+import edu.kit.kastel.vads.compiler.parser.ast.IfTree;
 import edu.kit.kastel.vads.compiler.parser.ast.LValueIdentTree;
 import edu.kit.kastel.vads.compiler.parser.ast.LiteralTree;
 import edu.kit.kastel.vads.compiler.parser.ast.NameTree;
@@ -20,13 +24,16 @@ import edu.kit.kastel.vads.compiler.parser.ast.NegateTree;
 import edu.kit.kastel.vads.compiler.parser.ast.ProgramTree;
 import edu.kit.kastel.vads.compiler.parser.ast.ReturnTree;
 import edu.kit.kastel.vads.compiler.parser.ast.StatementTree;
+import edu.kit.kastel.vads.compiler.parser.ast.TernaryOperationTree;
 import edu.kit.kastel.vads.compiler.parser.ast.Tree;
 import edu.kit.kastel.vads.compiler.parser.ast.TypeTree;
+import edu.kit.kastel.vads.compiler.parser.ast.WhileTree;
 import edu.kit.kastel.vads.compiler.parser.symbol.Name;
 import edu.kit.kastel.vads.compiler.parser.visitor.Visitor;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BinaryOperator;
 
@@ -40,6 +47,8 @@ import java.util.function.BinaryOperator;
 public class SsaTranslation {
     private final FunctionTree function;
     private final GraphConstructor constructor;
+    private final Deque<String> loopEndLabels = new ArrayDeque<>();
+    private final Deque<String> loopHeadLabels = new ArrayDeque<>();
 
     public SsaTranslation(FunctionTree function, Optimizer optimizer) {
         this.function = function;
@@ -62,6 +71,14 @@ public class SsaTranslation {
 
     private Block currentBlock() {
         return this.constructor.currentBlock();
+    }
+
+    Deque<String> loopEndLabels() {
+        return loopEndLabels;
+    }
+
+    Deque<String> loopHeadLabels() {
+        return loopHeadLabels;
     }
 
     private static class SsaTranslationVisitor implements Visitor<SsaTranslation, Optional<Node>> {
@@ -89,6 +106,11 @@ public class SsaTranslation {
                 case ASSIGN_MUL -> data.constructor::newMul;
                 case ASSIGN_DIV -> (lhs, rhs) -> projResultDivMod(data, data.constructor.newDiv(lhs, rhs));
                 case ASSIGN_MOD -> (lhs, rhs) -> projResultDivMod(data, data.constructor.newMod(lhs, rhs));
+                case ASSIGN_BITWISE_AND -> data.constructor::newBitwiseAnd;
+                case ASSIGN_BITWISE_XOR -> data.constructor::newBitwiseXor;
+                case ASSIGN_BITWISE_OR -> data.constructor::newBitwiseOr;
+                case ASSIGN_SHIFT_LEFT -> data.constructor::newShiftLeft;
+                case ASSIGN_SHIFT_RIGHT -> data.constructor::newShiftRight; 
                 case ASSIGN -> null;
                 default ->
                     throw new IllegalArgumentException("not an assignment operator " + assignmentTree.operator());
@@ -118,8 +140,22 @@ public class SsaTranslation {
                 case MUL -> data.constructor.newMul(lhs, rhs);
                 case DIV -> projResultDivMod(data, data.constructor.newDiv(lhs, rhs));
                 case MOD -> projResultDivMod(data, data.constructor.newMod(lhs, rhs));
+                case COMPARE_GREATER -> data.constructor.newCompareGreater(lhs, rhs);
+                case COMPARE_GREATER_EQUAL -> data.constructor.newCompareGreaterEqual(lhs, rhs);
+                case COMPARE_LESS -> data.constructor.newCompareLess(lhs, rhs);
+                case COMPARE_LESS_EQUAL -> data.constructor.newCompareLessEqual(lhs, rhs);
+                case COMPARE_EQUAL -> data.constructor.newCompareEqual(lhs, rhs);
+                case COMPARE_NOT_EQUAL -> data.constructor.newCompareNotEqual(lhs, rhs);
+                case BITWISE_AND -> data.constructor.newBitwiseAnd(lhs, rhs);
+                case BITWISE_XOR -> data.constructor.newBitwiseXor(lhs, rhs);
+                case BITWISE_OR -> data.constructor.newBitwiseOr(lhs, rhs);
+                case SHIFT_LEFT -> data.constructor.newShiftLeft(lhs, rhs);
+                case SHIFT_RIGHT -> data.constructor.newShiftRight(lhs, rhs);
+                case AND -> data.constructor.newLogicalAnd(lhs, rhs);
+                case OR -> data.constructor.newLogicalOr(lhs, rhs);
                 default ->
-                    throw new IllegalArgumentException("not a binary expression operator " + binaryOperationTree.operatorType());
+                    throw new IllegalArgumentException(
+                            "not a binary expression operator " + binaryOperationTree.operatorType());
             };
             popSpan();
             return Optional.of(res);
@@ -130,8 +166,8 @@ public class SsaTranslation {
             pushSpan(blockTree);
             for (StatementTree statement : blockTree.statements()) {
                 statement.accept(this, data);
-                // skip everything after a return in a block
-                if (statement instanceof ReturnTree) {
+                // Stop after break or return
+                if (statement instanceof BreakTree || statement instanceof ReturnTree) {
                     break;
                 }
             }
@@ -211,6 +247,92 @@ public class SsaTranslation {
         }
 
         @Override
+        public Optional<Node> visit(WhileTree whileTree, SsaTranslation data) {
+            pushSpan(whileTree);
+            Node condition = whileTree.condition().accept(this, data).orElseThrow();
+            String endLabel = "while_end_" + whileTree.hashCode();
+            data.loopEndLabels().push(endLabel);
+            data.loopHeadLabels().push("while_head_" + whileTree.hashCode());
+            whileTree.body().accept(this, data);
+            data.loopEndLabels().pop();
+            data.loopHeadLabels().pop();
+            Node loop = data.constructor.newLoop(condition, data.currentBlock());
+            data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(loop));
+
+            popSpan();
+            return NOT_AN_EXPRESSION;
+        }
+
+        @Override
+        public Optional<Node> visit(BreakTree breakTree, SsaTranslation data) {
+            pushSpan(breakTree);
+            String endLabel = data.loopEndLabels().peek();
+            if (endLabel == null) {
+                throw new IllegalStateException("break statement not inside a loop");
+            }
+            Node breakNode = data.constructor.newBreak(endLabel);
+            data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(breakNode));
+            popSpan();
+            return NOT_AN_EXPRESSION;
+        }
+
+        @Override
+        public Optional<Node> visit(ContinueTree continueTree, SsaTranslation data) {
+            pushSpan(continueTree);
+            String loopHeadLabel = data.loopHeadLabels().peek();
+            if (loopHeadLabel == null) {
+                throw new IllegalStateException("continue statement not inside a loop");
+            }
+            Node continueNode = data.constructor.newContinue(loopHeadLabel);
+            data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(continueNode));
+            popSpan();
+            return NOT_AN_EXPRESSION;
+        }
+
+        @Override
+        public Optional<Node> visit(ForTree forTree, SsaTranslation data) {
+            pushSpan(forTree);
+            if (forTree.init() != null) {
+                forTree.init().accept(this, data);
+            }
+
+            forTree.body().accept(this, data);
+            if (forTree.update() != null) {
+                forTree.update().accept(this, data);
+            }
+            WhileTree whileTree = new WhileTree(forTree.condition(), forTree.body());
+            whileTree.accept(this, data);
+            popSpan();
+            return NOT_AN_EXPRESSION;
+        }
+
+        @Override
+        public Optional<Node> visit(IfTree ifTree, SsaTranslation data) {
+            pushSpan(ifTree);
+            Node condition = ifTree.condition().accept(this, data).orElseThrow();
+            Node thenBlock = ifTree.thenBranch().accept(this, data).orElseThrow();
+            Node elseBlock = (ifTree.elseBranch() != null
+                ? ifTree.elseBranch().accept(this, data).orElse(null)
+                : null);
+            Node ifNode = data.constructor.newIf(condition, thenBlock, elseBlock);
+            data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(ifNode));
+            popSpan();
+            return NOT_AN_EXPRESSION;
+        }
+
+        @Override
+        public Optional<Node> visit(TernaryOperationTree ternaryOperationTree, SsaTranslation data) {
+            pushSpan(ternaryOperationTree);
+            Node condition = ternaryOperationTree.condition().accept(this, data).orElseThrow();
+            Node trueExpr = ternaryOperationTree.trueExpression().accept(this, data).orElseThrow();
+            Node falseExpr = ternaryOperationTree.falseExpression().accept(this, data).orElseThrow();
+            Node ternaryNode = data.constructor.newIf(condition, trueExpr, falseExpr);
+            data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(ternaryNode));
+            popSpan();
+            return NOT_AN_EXPRESSION;
+        }
+
+        @Override
         public Optional<Node> visit(TypeTree typeTree, SsaTranslation data) {
             throw new UnsupportedOperationException();
         }
@@ -226,6 +348,5 @@ public class SsaTranslation {
             return data.constructor.newResultProj(divMod);
         }
     }
-
 
 }

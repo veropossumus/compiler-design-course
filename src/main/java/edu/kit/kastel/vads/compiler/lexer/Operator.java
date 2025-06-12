@@ -15,34 +15,50 @@ public record Operator(OperatorType type, Span span) implements Token {
     }
 
     public enum OperatorType {
-        ASSIGN_MINUS("-="),
+
+        NOT("!"),
+        BITWISE_NOT("~"),
         MINUS("-"),
-        ASSIGN_PLUS("+="),
-        PLUS("+"),
+
         MUL("*"),
-        ASSIGN_MUL("*="),
-        ASSIGN_DIV("/="),
         DIV("/"),
-        ASSIGN_MOD("%="),
         MOD("%"),
-        ASSIGN("="),
+
+        PLUS("+"),
+        ASSIGN_PLUS("+="),
+        ASSIGN_MINUS("-="),
+
+        SHIFT_LEFT("<<"),
         ASSIGN_SHIFT_LEFT("<<="),
+        SHIFT_RIGHT(">>"),
         ASSIGN_SHIFT_RIGHT(">>="),
-        ASSIGN_BITWISE_AND("&="),
-        ASSIGN_BITWISE_OR("|="),
-        ASSIGN_BITWISE_XOR("^="),
-        COMPARE_EQUAL("=="),
-        COMPARE_NOT_EQUAL("!="),
+
         COMPARE_LESS("<"),
         COMPARE_LESS_EQUAL("<="),
         COMPARE_GREATER(">"),
         COMPARE_GREATER_EQUAL(">="),
-        SHIFT_LEFT("<<"),
-        SHIFT_RIGHT(">>"),
+
+        COMPARE_EQUAL("=="),
+        COMPARE_NOT_EQUAL("!="),
+
         BITWISE_AND("&"),
-        BITWISE_OR("|"),
+        ASSIGN_BITWISE_AND("&="),
         BITWISE_XOR("^"),
-        CONDITIONAL_EXPRESSION("?:"), // kp wie das gehen soll
+        ASSIGN_BITWISE_XOR("^="),
+        BITWISE_OR("|"),
+        ASSIGN_BITWISE_OR("|="),
+
+        AND("&&"),
+        OR("||"),
+
+        QUESTION("?"),
+        COLON(":"),
+
+        ASSIGN("="),
+        ASSIGN_MUL("*="),
+        ASSIGN_DIV("/="),
+        ASSIGN_MOD("%="),
+
         ;
 
         private final String value;

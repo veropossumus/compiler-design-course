@@ -2,8 +2,13 @@ package edu.kit.kastel.vads.compiler.ir;
 
 import edu.kit.kastel.vads.compiler.ir.node.AddNode;
 import edu.kit.kastel.vads.compiler.ir.node.Block;
+import edu.kit.kastel.vads.compiler.ir.node.BreakNode;
 import edu.kit.kastel.vads.compiler.ir.node.ConstIntNode;
+import edu.kit.kastel.vads.compiler.ir.node.ContinueNode;
 import edu.kit.kastel.vads.compiler.ir.node.DivNode;
+import edu.kit.kastel.vads.compiler.ir.node.IfNode;
+import edu.kit.kastel.vads.compiler.ir.node.LogicalAndNode;
+import edu.kit.kastel.vads.compiler.ir.node.LogicalOrNode;
 import edu.kit.kastel.vads.compiler.ir.node.ModNode;
 import edu.kit.kastel.vads.compiler.ir.node.MulNode;
 import edu.kit.kastel.vads.compiler.ir.node.Node;
@@ -12,8 +17,20 @@ import edu.kit.kastel.vads.compiler.ir.node.ProjNode;
 import edu.kit.kastel.vads.compiler.ir.node.ReturnNode;
 import edu.kit.kastel.vads.compiler.ir.node.StartNode;
 import edu.kit.kastel.vads.compiler.ir.node.SubNode;
+import edu.kit.kastel.vads.compiler.ir.node.WhileNode;
 import edu.kit.kastel.vads.compiler.ir.optimize.Optimizer;
 import edu.kit.kastel.vads.compiler.parser.symbol.Name;
+import edu.kit.kastel.vads.compiler.ir.node.BitwiseAndNode;
+import edu.kit.kastel.vads.compiler.ir.node.BitwiseOrNode;
+import edu.kit.kastel.vads.compiler.ir.node.BitwiseXorNode;
+import edu.kit.kastel.vads.compiler.ir.node.CompareEqualNode;
+import edu.kit.kastel.vads.compiler.ir.node.CompareGreaterEqualNode;
+import edu.kit.kastel.vads.compiler.ir.node.CompareGreaterNode;
+import edu.kit.kastel.vads.compiler.ir.node.CompareLessEqualNode;
+import edu.kit.kastel.vads.compiler.ir.node.CompareLessNode;
+import edu.kit.kastel.vads.compiler.ir.node.CompareNotEqualNode;
+import edu.kit.kastel.vads.compiler.ir.node.ShiftLeftNode;
+import edu.kit.kastel.vads.compiler.ir.node.ShiftRightNode;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,6 +64,7 @@ class GraphConstructor {
     public Node newAdd(Node left, Node right) {
         return this.optimizer.transform(new AddNode(currentBlock(), left, right));
     }
+
     public Node newSub(Node left, Node right) {
         return this.optimizer.transform(new SubNode(currentBlock(), left, right));
     }
@@ -81,6 +99,14 @@ class GraphConstructor {
         return new ProjNode(currentBlock(), node, ProjNode.SimpleProjectionInfo.RESULT);
     }
 
+    public Node newLoop(Node condition, Node body) {
+        return this.optimizer.transform(new WhileNode(currentBlock(), condition, body));
+    }
+
+    public Node newBreak(String endLabel) {
+        return new BreakNode(currentBlock(), endLabel);
+    }
+
     public Block currentBlock() {
         return this.currentBlock;
     }
@@ -105,7 +131,6 @@ class GraphConstructor {
         }
         return readVariableRecursive(variable, block);
     }
-
 
     private Node readVariableRecursive(Name variable, Block block) {
         Node val;
@@ -189,4 +214,63 @@ class GraphConstructor {
         return tryRemoveTrivialPhi(phi);
     }
 
+    public Node newIf(Node condition, Node thenBlock, Node elseBlock) {
+        return new IfNode(currentBlock(), condition, thenBlock, elseBlock);
+    }
+
+    public Node newContinue(String loopHeadLabel) {
+        return new ContinueNode(currentBlock(), loopHeadLabel);
+    }
+
+    public Node newCompareGreater(Node left, Node right) {
+        return this.optimizer.transform(new CompareGreaterNode(currentBlock(), left, right));
+    }
+
+    public Node newCompareGreaterEqual(Node left, Node right) {
+        return this.optimizer.transform(new CompareGreaterEqualNode(currentBlock(), left, right));
+    }
+
+    public Node newCompareLess(Node left, Node right) {
+        return this.optimizer.transform(new CompareLessNode(currentBlock(), left, right));
+    }
+
+    public Node newCompareLessEqual(Node left, Node right) {
+        return this.optimizer.transform(new CompareLessEqualNode(currentBlock(), left, right));
+    }
+
+    public Node newCompareEqual(Node left, Node right) {
+        return this.optimizer.transform(new CompareEqualNode(currentBlock(), left, right));
+    }
+
+    public Node newCompareNotEqual(Node left, Node right) {
+        return this.optimizer.transform(new CompareNotEqualNode(currentBlock(), left, right));
+    }
+
+    public Node newShiftLeft(Node left, Node right) {
+        return this.optimizer.transform(new ShiftLeftNode(currentBlock(), left, right));
+    }
+
+    public Node newShiftRight(Node left, Node right) {
+        return this.optimizer.transform(new ShiftRightNode(currentBlock(), left, right));
+    }
+
+    public Node newBitwiseAnd(Node left, Node right) {
+        return this.optimizer.transform(new BitwiseAndNode(currentBlock(), left, right));
+    }
+
+    public Node newBitwiseOr(Node left, Node right) {
+        return this.optimizer.transform(new BitwiseOrNode(currentBlock(), left, right));
+    }
+
+    public Node newBitwiseXor(Node left, Node right) {
+        return this.optimizer.transform(new BitwiseXorNode(currentBlock(), left, right));
+    }
+
+    public Node newLogicalAnd(Node left, Node right) {
+        return this.optimizer.transform(new LogicalAndNode(currentBlock(), left, right));
+    }
+
+    public Node newLogicalOr(Node left, Node right) {
+        return this.optimizer.transform(new LogicalOrNode(currentBlock(), left, right));
+    }
 }
