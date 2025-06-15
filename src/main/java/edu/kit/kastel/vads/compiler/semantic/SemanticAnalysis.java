@@ -26,6 +26,7 @@ public class SemanticAnalysis {
         Types types = new Types(namespaces);
         this.program.accept(new RecursivePostorderVisitor<>(new TypeAnalysis()), types);
         this.program.accept(new RecursivePostorderVisitor<>(new LoopAnalysis()), new LoopAnalysis.Loopy());
+        this.program.accept(new RecursivePostorderVisitor<>(new BreakAnalysis()), new BreakAnalysis.LoopContext());
 
     }
 
