@@ -67,7 +67,7 @@ public class Printer {
                 printTree(body);
             }
             case NameTree(var name, _) -> print(name.asString());
-            case ProgramTree(var topLevelTrees) -> {
+            case ProgramTree(var topLevelTrees, var scope) -> {
                 for (FunctionTree function : topLevelTrees) {
                     printTree(function);
                     lineBreak();

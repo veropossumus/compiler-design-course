@@ -41,13 +41,14 @@ import java.util.Map;
 
 public class Parser {
     private final TokenSource tokenSource;
+    private final List<Scope> scopes = new ArrayList<>();
 
     public Parser(TokenSource tokenSource) {
         this.tokenSource = tokenSource;
     }
 
     public ProgramTree parseProgram() {
-        ProgramTree programTree = new ProgramTree(List.of(parseFunction()));
+        ProgramTree programTree = new ProgramTree(List.of(parseFunction()), this.scopes);
         if (this.tokenSource.hasMore()) {
             throw new ParseException("expected end of input but got " + this.tokenSource.peek());
         }
@@ -226,6 +227,10 @@ public class Parser {
         this.tokenSource.expectSeparator(SeparatorType.PAREN_CLOSE);
         StatementTree body = parseStatement();
         return new ForTree(init, condition, update, body);
+    }
+
+    public List<Scope> getScopes() {
+        return scopes;
     }
 
     private static final class OpInfo {
