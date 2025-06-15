@@ -29,6 +29,14 @@ public class RecursivePostorderVisitor<T, R> implements Visitor<T, R> {
     }
 
     @Override
+    public R visit(BinaryBoolOperationTree binaryBoolOperationTree, T data) {
+        R r = binaryBoolOperationTree.lhs().accept(this, data);
+        r = binaryBoolOperationTree.rhs().accept(this, accumulate(data, r));
+        r = this.visitor.visit(binaryBoolOperationTree, accumulate(data, r));
+        return r;
+    }
+
+    @Override
     public R visit(BlockTree blockTree, T data) {
         R r;
         T d = data;

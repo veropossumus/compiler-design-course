@@ -43,4 +43,6 @@ public interface Visitor<T, R> {
     R visit(TernaryOperationTree ternaryOperationTree, T data);
 
     R visit(BoolLiteralTree boolLiteralTree, T data);
+
+    R visit(BinaryBoolOperationTree binaryBoolOperationTree, T data);
 }

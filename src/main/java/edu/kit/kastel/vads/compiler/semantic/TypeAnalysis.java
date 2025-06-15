@@ -24,17 +24,39 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
     }
 
     @Override
+    public Unit visit(BinaryBoolOperationTree binaryBoolOperationTree, Types data){
+        TYPES lhs = data.get(binaryBoolOperationTree.lhs());
+        TYPES rhs = data.get(binaryBoolOperationTree.rhs());
+
+        if(lhs != TYPES.INT) throwError(binaryBoolOperationTree, lhs, TYPES.INT);
+        if(rhs != TYPES.INT) throwError(binaryBoolOperationTree, rhs, TYPES.INT);
+
+        data.put(binaryBoolOperationTree, TYPES.BOOL);
+        return NoOpVisitor.super.visit(binaryBoolOperationTree, data);
+    }
+
+    @Override
     public Unit visit(BinaryOperationTree binaryOperationTree, Types data){
         TYPES lhs = data.get(binaryOperationTree.lhs());
         TYPES rhs = data.get(binaryOperationTree.rhs());
+        String operator = binaryOperationTree.operatorType().toString();
+
+        if (operator.equals("=")) {
+            if (lhs == null || rhs == null || lhs != rhs) {
+                throwError(binaryOperationTree, rhs, lhs);
+            }
+
+            data.put(binaryOperationTree, TYPES.VALID);
+            return NoOpVisitor.super.visit(binaryOperationTree, data);
+        }
 
         if(lhs != TYPES.INT) throwError(binaryOperationTree, lhs, TYPES.INT);
         if(rhs != TYPES.INT) throwError(binaryOperationTree, rhs, TYPES.INT);
 
-        String operator = binaryOperationTree.operatorType().toString();
         System.out.println("Binary operation: " + operator + ", setting result type to: " +
                 (operator.equals(">") || operator.equals("<") || operator.equals(">=") ||
                         operator.equals("<=") || operator.equals("==") || operator.equals("!=") ? "BOOL" : "INT"));
+
 
         if (operator.equals(">") || operator.equals("<") || operator.equals(">=") ||
                 operator.equals("<=") || operator.equals("==") || operator.equals("!=")) {
@@ -68,6 +90,10 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
         }
         TYPES rhs = data.get(assignmentTree.expression());
         if(lhs != rhs) throwError(assignmentTree, rhs, lhs);
+        if (!assignmentTree.operator().type().toString().equals("=") && !lhs.equals(TYPES.INT)){
+            throwError(assignmentTree, lhs, TYPES.INT);
+
+        }
         data.put(assignmentTree, TYPES.VALID);
         return NoOpVisitor.super.visit(assignmentTree, data);
     }
