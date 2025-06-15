@@ -1,25 +1,8 @@
 package edu.kit.kastel.vads.compiler.ir.util;
 
 import edu.kit.kastel.vads.compiler.ir.IrGraph;
-import edu.kit.kastel.vads.compiler.ir.node.BinaryOperationNode;
-import edu.kit.kastel.vads.compiler.ir.node.Block;
-import edu.kit.kastel.vads.compiler.ir.node.BreakNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareGreaterEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareGreaterNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareLessEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareLessNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareNotEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.ConstIntNode;
-import edu.kit.kastel.vads.compiler.ir.node.ContinueNode;
-import edu.kit.kastel.vads.compiler.ir.node.IfNode;
-import edu.kit.kastel.vads.compiler.ir.node.Node;
-import edu.kit.kastel.vads.compiler.ir.node.Phi;
-import edu.kit.kastel.vads.compiler.ir.node.ProjNode;
+import edu.kit.kastel.vads.compiler.ir.node.*;
 import edu.kit.kastel.vads.compiler.ir.node.ProjNode.SimpleProjectionInfo;
-import edu.kit.kastel.vads.compiler.ir.node.ReturnNode;
-import edu.kit.kastel.vads.compiler.ir.node.StartNode;
-import edu.kit.kastel.vads.compiler.ir.node.WhileNode;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -226,6 +209,7 @@ public class YCompPrinter {
             case BinaryOperationNode _ -> VcgColor.NORMAL;
             case Block _ -> VcgColor.NORMAL;
             case ConstIntNode _ -> VcgColor.NORMAL;
+            case ConstBoolNode _ -> VcgColor.NORMAL;
             case Phi _ -> VcgColor.PHI;
             case WhileNode _ -> VcgColor.CONTROL_FLOW;
             case BreakNode _ -> VcgColor.CONTROL_FLOW;

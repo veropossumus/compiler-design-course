@@ -10,28 +10,7 @@ import edu.kit.kastel.vads.compiler.lexer.Separator;
 import edu.kit.kastel.vads.compiler.lexer.Separator.SeparatorType;
 import edu.kit.kastel.vads.compiler.Span;
 import edu.kit.kastel.vads.compiler.lexer.Token;
-import edu.kit.kastel.vads.compiler.parser.ast.AssignmentTree;
-import edu.kit.kastel.vads.compiler.parser.ast.BinaryOperationTree;
-import edu.kit.kastel.vads.compiler.parser.ast.BlockTree;
-import edu.kit.kastel.vads.compiler.parser.ast.BreakTree;
-import edu.kit.kastel.vads.compiler.parser.ast.ContinueTree;
-import edu.kit.kastel.vads.compiler.parser.ast.DeclarationTree;
-import edu.kit.kastel.vads.compiler.parser.ast.ExpressionTree;
-import edu.kit.kastel.vads.compiler.parser.ast.ForTree;
-import edu.kit.kastel.vads.compiler.parser.ast.FunctionTree;
-import edu.kit.kastel.vads.compiler.parser.ast.IdentExpressionTree;
-import edu.kit.kastel.vads.compiler.parser.ast.IfTree;
-import edu.kit.kastel.vads.compiler.parser.ast.LValueIdentTree;
-import edu.kit.kastel.vads.compiler.parser.ast.LValueTree;
-import edu.kit.kastel.vads.compiler.parser.ast.LiteralTree;
-import edu.kit.kastel.vads.compiler.parser.ast.NameTree;
-import edu.kit.kastel.vads.compiler.parser.ast.NegateTree;
-import edu.kit.kastel.vads.compiler.parser.ast.ProgramTree;
-import edu.kit.kastel.vads.compiler.parser.ast.ReturnTree;
-import edu.kit.kastel.vads.compiler.parser.ast.StatementTree;
-import edu.kit.kastel.vads.compiler.parser.ast.TernaryOperationTree;
-import edu.kit.kastel.vads.compiler.parser.ast.TypeTree;
-import edu.kit.kastel.vads.compiler.parser.ast.WhileTree;
+import edu.kit.kastel.vads.compiler.parser.ast.*;
 import edu.kit.kastel.vads.compiler.parser.symbol.Name;
 import edu.kit.kastel.vads.compiler.parser.type.BasicType;
 import edu.kit.kastel.vads.compiler.semantic.SemanticException;
@@ -106,6 +85,8 @@ public class Parser {
             statement = parseContinue();
         } else if (this.tokenSource.peek().isKeyword(KeywordType.FOR)) {
             statement = parseFor();
+        } else if (this.tokenSource.peek().isSeparator(SeparatorType.BRACE_OPEN)) {
+                statement = parseBlock();
         } else {
             statement = parseSimple();
         }
@@ -329,11 +310,11 @@ public class Parser {
             }
             case Keyword(var type, var span) when type == KeywordType.TRUE -> {
                 this.tokenSource.consume();
-                yield new LiteralTree("1", 10, span);
+                yield new BoolLiteralTree(true, span);
             }
             case Keyword(var type, var span) when type == KeywordType.FALSE -> {
                 this.tokenSource.consume();
-                yield new LiteralTree("0", 10, span);
+                yield new BoolLiteralTree(false, span);
             }
             case Token t -> throw new ParseException("invalid factor " + t);
         };

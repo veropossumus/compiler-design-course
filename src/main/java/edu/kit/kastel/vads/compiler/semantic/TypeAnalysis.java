@@ -32,6 +32,10 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
         if(rhs != TYPES.INT) throwError(binaryOperationTree, rhs, TYPES.INT);
 
         String operator = binaryOperationTree.operatorType().toString();
+        System.out.println("Binary operation: " + operator + ", setting result type to: " +
+                (operator.equals(">") || operator.equals("<") || operator.equals(">=") ||
+                        operator.equals("<=") || operator.equals("==") || operator.equals("!=") ? "BOOL" : "INT"));
+
         if (operator.equals(">") || operator.equals("<") || operator.equals(">=") ||
                 operator.equals("<=") || operator.equals("==") || operator.equals("!=")) {
             data.put(binaryOperationTree, TYPES.BOOL);
@@ -103,8 +107,12 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
         if (data.get(forLoopTree.init()) != TYPES.VALID) {
             throwError(forLoopTree.init(), data.get(forLoopTree.init()), TYPES.VALID);
         }
-        if (data.get(forLoopTree.condition()) != TYPES.BOOL) {
-            throwError(forLoopTree.condition(), data.get(forLoopTree.condition()), TYPES.BOOL);
+
+        TYPES conditionType = data.get(forLoopTree.condition());
+        System.out.println("For loop condition type: " + conditionType + " at span: " + forLoopTree.condition().span());
+
+        if (conditionType != TYPES.BOOL) {
+            throwError(forLoopTree.condition(), conditionType, TYPES.BOOL);
         }
         if (data.get(forLoopTree.body()) != TYPES.VALID) {
             throwError(forLoopTree.body(), data.get(forLoopTree.body()), TYPES.VALID);
@@ -160,12 +168,14 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
 
     @Override
     public Unit visit(LiteralTree literalTree, Types data) {
-        if (literalTree.value().equals("true") || literalTree.value().equals("false")) {
-            data.put(literalTree, TYPES.BOOL);
-        } else {
-            data.put(literalTree, TYPES.INT);
-        }
+        data.put(literalTree, TYPES.INT);
         return NoOpVisitor.super.visit(literalTree, data);
+    }
+
+    @Override
+    public Unit visit(BoolLiteralTree boolLiteralTree, Types data) {
+        data.put(boolLiteralTree, TYPES.BOOL);
+        return NoOpVisitor.super.visit(boolLiteralTree, data);
     }
 
     @Override

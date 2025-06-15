@@ -2,36 +2,7 @@ package edu.kit.kastel.vads.compiler.backend.aasm;
 
 import edu.kit.kastel.vads.compiler.backend.regalloc.Register;
 import edu.kit.kastel.vads.compiler.ir.IrGraph;
-import edu.kit.kastel.vads.compiler.ir.node.AddNode;
-import edu.kit.kastel.vads.compiler.ir.node.BinaryOperationNode;
-import edu.kit.kastel.vads.compiler.ir.node.BitwiseAndNode;
-import edu.kit.kastel.vads.compiler.ir.node.BitwiseOrNode;
-import edu.kit.kastel.vads.compiler.ir.node.BitwiseXorNode;
-import edu.kit.kastel.vads.compiler.ir.node.Block;
-import edu.kit.kastel.vads.compiler.ir.node.BreakNode;
-import edu.kit.kastel.vads.compiler.ir.node.ConstIntNode;
-import edu.kit.kastel.vads.compiler.ir.node.ContinueNode;
-import edu.kit.kastel.vads.compiler.ir.node.DivNode;
-import edu.kit.kastel.vads.compiler.ir.node.IfNode;
-import edu.kit.kastel.vads.compiler.ir.node.LogicalAndNode;
-import edu.kit.kastel.vads.compiler.ir.node.LogicalOrNode;
-import edu.kit.kastel.vads.compiler.ir.node.ModNode;
-import edu.kit.kastel.vads.compiler.ir.node.MulNode;
-import edu.kit.kastel.vads.compiler.ir.node.Node;
-import edu.kit.kastel.vads.compiler.ir.node.Phi;
-import edu.kit.kastel.vads.compiler.ir.node.ProjNode;
-import edu.kit.kastel.vads.compiler.ir.node.ReturnNode;
-import edu.kit.kastel.vads.compiler.ir.node.ShiftLeftNode;
-import edu.kit.kastel.vads.compiler.ir.node.ShiftRightNode;
-import edu.kit.kastel.vads.compiler.ir.node.StartNode;
-import edu.kit.kastel.vads.compiler.ir.node.SubNode;
-import edu.kit.kastel.vads.compiler.ir.node.WhileNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareGreaterNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareGreaterEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareLessNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareLessEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareNotEqualNode;
+import edu.kit.kastel.vads.compiler.ir.node.*;
 
 import java.util.HashSet;
 import java.util.List;
@@ -108,6 +79,7 @@ public class CodeGenerator {
             case ModNode mod -> binaryDivMod(builder, registers, mod);
             case ReturnNode ret -> generateReturn(builder, registers, ret);
             case ConstIntNode c -> generateConstant(builder, registers, c);
+            case ConstBoolNode c -> generateBoolConstant(builder, registers, c);
             case WhileNode whileNode -> generateWhile(builder, registers, whileNode);
             case BreakNode breakNode -> generateBreak(builder, breakNode);
             case IfNode ifNode -> generateIf(builder, registers, ifNode);
@@ -332,6 +304,16 @@ public class CodeGenerator {
     }
 
     private void generateConstant(StringBuilder builder, Map<Node, Register> registers, ConstIntNode node) {
+        String dest = PhysicalRegisterMapper.map(registers.get(node));
+
+        builder.append("    movl $")
+                .append(node.value())
+                .append(", ")
+                .append(dest)
+                .append("\n");
+    }
+
+    private void generateBoolConstant(StringBuilder builder, Map<Node, Register> registers, ConstBoolNode node) {
         String dest = PhysicalRegisterMapper.map(registers.get(node));
 
         builder.append("    movl $")

@@ -1,11 +1,7 @@
 package edu.kit.kastel.vads.compiler.semantic;
 
 import edu.kit.kastel.vads.compiler.lexer.Operator;
-import edu.kit.kastel.vads.compiler.parser.ast.AssignmentTree;
-import edu.kit.kastel.vads.compiler.parser.ast.DeclarationTree;
-import edu.kit.kastel.vads.compiler.parser.ast.IdentExpressionTree;
-import edu.kit.kastel.vads.compiler.parser.ast.LValueIdentTree;
-import edu.kit.kastel.vads.compiler.parser.ast.NameTree;
+import edu.kit.kastel.vads.compiler.parser.ast.*;
 import edu.kit.kastel.vads.compiler.parser.visitor.NoOpVisitor;
 import edu.kit.kastel.vads.compiler.parser.visitor.Unit;
 import org.jspecify.annotations.Nullable;
@@ -30,7 +26,6 @@ class VariableStatusAnalysis implements NoOpVisitor<Namespace<VariableStatusAnal
                     checkInitialized(name, status);
                 }
                 if (status != VariableStatus.INITIALIZED) {
-                    // only update when needed, reassignment is totally fine
                     updateStatus(data, VariableStatus.INITIALIZED, name);
                 }
             }
@@ -58,12 +53,18 @@ class VariableStatusAnalysis implements NoOpVisitor<Namespace<VariableStatusAnal
 
     @Override
     public Unit visit(DeclarationTree declarationTree, Namespace<VariableStatus> data) {
-        checkUndeclared(declarationTree.name(), data.get(declarationTree.name()));
+        checkUndeclared(declarationTree.name(), data.getInCurrentScope(declarationTree.name()));
         VariableStatus status = declarationTree.initializer() == null
-            ? VariableStatus.DECLARED
-            : VariableStatus.INITIALIZED;
-        updateStatus(data, status, declarationTree.name());
-        return NoOpVisitor.super.visit(declarationTree, data);
+                ? VariableStatus.DECLARED
+                : VariableStatus.INITIALIZED;
+        data.putInCurrentScope(declarationTree.name(), status);
+
+        // Visit the initializer if it exists (important for expressions like `int x = y + 1`)
+        if (declarationTree.initializer() != null) {
+            declarationTree.initializer().accept(this, data);
+        }
+
+        return Unit.INSTANCE;
     }
 
     private static void updateStatus(Namespace<VariableStatus> data, VariableStatus status, NameTree name) {
@@ -90,5 +91,69 @@ class VariableStatusAnalysis implements NoOpVisitor<Namespace<VariableStatusAnal
         public String toString() {
             return name().toLowerCase(Locale.ROOT);
         }
+    }
+
+    @Override
+    public Unit visit(ForTree forLoopTree, Namespace<VariableStatus> scope) {
+        Namespace<VariableStatus> loopScope = scope.enterScope();
+
+        if (forLoopTree.init() != null) {
+            forLoopTree.init().accept(this, loopScope);
+        }
+
+        if (forLoopTree.condition() != null) {
+            forLoopTree.condition().accept(this, loopScope);
+        }
+
+        if (forLoopTree.body() != null) {
+            forLoopTree.body().accept(this, loopScope);
+        }
+
+        if (forLoopTree.update() != null) {
+            forLoopTree.update().accept(this, loopScope);
+        }
+
+        Namespace<VariableStatus> parentScope = loopScope.exitScope();
+
+        return Unit.INSTANCE;
+    }
+
+
+
+    @Override
+    public Unit visit(BlockTree blockTree, Namespace<VariableStatus> data) {
+        Namespace<VariableStatus> newScope = data.enterScope();
+
+        for (var statement : blockTree.statements()) {
+            statement.accept(this, newScope);
+        }
+
+        return Unit.INSTANCE;
+    }
+
+    @Override
+    public Unit visit(WhileTree whileTree, Namespace<VariableStatus> data) {
+        Namespace<VariableStatus> newScope = data.enterScope();
+
+        whileTree.condition().accept(this, newScope);
+
+        whileTree.body().accept(this, newScope);
+
+        return Unit.INSTANCE;
+    }
+
+    @Override
+    public Unit visit(IfTree ifTree, Namespace<VariableStatus> data) {
+        ifTree.condition().accept(this, data);
+
+        Namespace<VariableStatus> thenScope = data.enterScope();
+        ifTree.thenBranch().accept(this, thenScope);
+
+        if (ifTree.elseBranch() != null) {
+            Namespace<VariableStatus> elseScope = data.enterScope();
+            ifTree.elseBranch().accept(this, elseScope);
+        }
+
+        return Unit.INSTANCE;
     }
 }

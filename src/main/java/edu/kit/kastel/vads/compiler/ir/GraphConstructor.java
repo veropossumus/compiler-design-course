@@ -1,36 +1,8 @@
 package edu.kit.kastel.vads.compiler.ir;
 
-import edu.kit.kastel.vads.compiler.ir.node.AddNode;
-import edu.kit.kastel.vads.compiler.ir.node.Block;
-import edu.kit.kastel.vads.compiler.ir.node.BreakNode;
-import edu.kit.kastel.vads.compiler.ir.node.ConstIntNode;
-import edu.kit.kastel.vads.compiler.ir.node.ContinueNode;
-import edu.kit.kastel.vads.compiler.ir.node.DivNode;
-import edu.kit.kastel.vads.compiler.ir.node.IfNode;
-import edu.kit.kastel.vads.compiler.ir.node.LogicalAndNode;
-import edu.kit.kastel.vads.compiler.ir.node.LogicalOrNode;
-import edu.kit.kastel.vads.compiler.ir.node.ModNode;
-import edu.kit.kastel.vads.compiler.ir.node.MulNode;
-import edu.kit.kastel.vads.compiler.ir.node.Node;
-import edu.kit.kastel.vads.compiler.ir.node.Phi;
-import edu.kit.kastel.vads.compiler.ir.node.ProjNode;
-import edu.kit.kastel.vads.compiler.ir.node.ReturnNode;
-import edu.kit.kastel.vads.compiler.ir.node.StartNode;
-import edu.kit.kastel.vads.compiler.ir.node.SubNode;
-import edu.kit.kastel.vads.compiler.ir.node.WhileNode;
+import edu.kit.kastel.vads.compiler.ir.node.*;
 import edu.kit.kastel.vads.compiler.ir.optimize.Optimizer;
 import edu.kit.kastel.vads.compiler.parser.symbol.Name;
-import edu.kit.kastel.vads.compiler.ir.node.BitwiseAndNode;
-import edu.kit.kastel.vads.compiler.ir.node.BitwiseOrNode;
-import edu.kit.kastel.vads.compiler.ir.node.BitwiseXorNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareGreaterEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareGreaterNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareLessEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareLessNode;
-import edu.kit.kastel.vads.compiler.ir.node.CompareNotEqualNode;
-import edu.kit.kastel.vads.compiler.ir.node.ShiftLeftNode;
-import edu.kit.kastel.vads.compiler.ir.node.ShiftRightNode;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,6 +61,10 @@ class GraphConstructor {
         // always move const into start block, this allows better deduplication
         // and resultingly in better value numbering
         return this.optimizer.transform(new ConstIntNode(this.graph.startBlock(), value));
+    }
+
+    public Node newConstBool(boolean value) {
+        return this.optimizer.transform(new ConstBoolNode(this.graph.startBlock(), value));
     }
 
     public Node newSideEffectProj(Node node) {
