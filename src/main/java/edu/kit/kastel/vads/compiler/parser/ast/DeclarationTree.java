@@ -4,7 +4,7 @@ import edu.kit.kastel.vads.compiler.Span;
 import edu.kit.kastel.vads.compiler.parser.visitor.Visitor;
 import org.jspecify.annotations.Nullable;
 
-public record DeclarationTree(TypeTree type, NameTree name, @Nullable ExpressionTree initializer) implements StatementTree {
+public record DeclarationTree(TypeTree type, NameTree name, @Nullable ExpressionTree initializer, int block) implements StatementTree {
     @Override
     public Span span() {
         if (initializer() != null) {

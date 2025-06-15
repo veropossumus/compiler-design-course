@@ -91,7 +91,7 @@ public class Printer {
                 printTree(expression);
                 print(")");
             }
-            case AssignmentTree(var lValue, var op, var expression) -> {
+            case AssignmentTree(var lValue, var op, var expression, _) -> {
                 printTree(lValue);
                 space();
                 this.builder.append(op);
@@ -99,7 +99,7 @@ public class Printer {
                 printTree(expression);
                 semicolon();
             }
-            case DeclarationTree(var type, var name, var initializer) -> {
+            case DeclarationTree(var type, var name, var initializer, _) -> {
                 printTree(type);
                 space();
                 printTree(name);
@@ -115,14 +115,14 @@ public class Printer {
                 semicolon();
             }
             case LValueIdentTree(var name) -> printTree(name);
-            case IdentExpressionTree(var name) -> printTree(name);
-            case WhileTree(var condition, var body) -> {
+            case IdentExpressionTree(var name, var block) -> printTree(name);
+            case WhileTree(var condition, var body, _) -> {
                 print("while (");
                 printTree(condition);
                 print(") ");
                 printTree(body);
             }
-            case BreakTree(_) -> {
+            case BreakTree(_, _) -> {
                 print("break");
                 semicolon();
             }
@@ -137,7 +137,7 @@ public class Printer {
                 }
             }
 
-            case ForTree(var init, var condition, var update, var body) -> {
+            case ForTree(var init, var condition, var update, var body, _) -> {
                 print("for (");
                 if (init != null) {
                     printTree(init);
@@ -154,7 +154,7 @@ public class Printer {
                 printTree(body);
             }
 
-            case ContinueTree(_) -> {
+            case ContinueTree(_, _) -> {
                 print("continue");
                 semicolon();
             }

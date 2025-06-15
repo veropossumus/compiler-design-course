@@ -3,7 +3,7 @@ package edu.kit.kastel.vads.compiler.parser.ast;
 import edu.kit.kastel.vads.compiler.Span;
 import edu.kit.kastel.vads.compiler.parser.visitor.Visitor;
 
-public record WhileTree(ExpressionTree condition, StatementTree body) implements StatementTree {
+public record WhileTree(ExpressionTree condition, StatementTree body, int loopId) implements StatementTree {
     @Override
     public Span span() {
         return new Span.SimpleSpan(condition().span().start(), body().span().end());

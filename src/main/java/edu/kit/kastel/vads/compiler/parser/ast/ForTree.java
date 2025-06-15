@@ -7,7 +7,8 @@ public record ForTree(
     StatementTree init,
     ExpressionTree condition,
     ExpressionTree update,
-    StatementTree body
+    StatementTree body,
+    int loopId
 ) implements StatementTree {
     @Override
     public Span span() {

@@ -164,15 +164,17 @@ public class SsaTranslation {
         @Override
         public Optional<Node> visit(BlockTree blockTree, SsaTranslation data) {
             pushSpan(blockTree);
+
+            Node blockNode = new Block(data.constructor.graph());
+
             for (StatementTree statement : blockTree.statements()) {
                 statement.accept(this, data);
-                // Stop after break or return
                 if (statement instanceof BreakTree || statement instanceof ReturnTree) {
                     break;
                 }
             }
             popSpan();
-            return NOT_AN_EXPRESSION;
+            return Optional.of(blockNode);
         }
 
         @Override
@@ -292,16 +294,25 @@ public class SsaTranslation {
         @Override
         public Optional<Node> visit(ForTree forTree, SsaTranslation data) {
             pushSpan(forTree);
-            if (forTree.init() != null) {
-                forTree.init().accept(this, data);
-            }
 
+            forTree.init().accept(this, data);
+
+            String endLabel = "for_end_" + forTree.hashCode();
+            String headLabel = "for_head_" + forTree.hashCode();
+            data.loopEndLabels().push(endLabel);
+            data.loopHeadLabels().push(headLabel);
+
+            Node condition = null;
+            condition = forTree.condition().accept(this, data).orElseThrow();
             forTree.body().accept(this, data);
-            if (forTree.update() != null) {
-                forTree.update().accept(this, data);
-            }
-            WhileTree whileTree = new WhileTree(forTree.condition(), forTree.body());
-            whileTree.accept(this, data);
+            forTree.update().accept(this, data);
+
+            data.loopEndLabels().pop();
+            data.loopHeadLabels().pop();
+
+            Node loop = data.constructor.newLoop(condition, new Block(data.constructor.graph()));
+            data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(loop));
+
             popSpan();
             return NOT_AN_EXPRESSION;
         }
@@ -311,9 +322,14 @@ public class SsaTranslation {
             pushSpan(ifTree);
             Node condition = ifTree.condition().accept(this, data).orElseThrow();
             Node thenBlock = ifTree.thenBranch().accept(this, data).orElseThrow();
-            Node elseBlock = (ifTree.elseBranch() != null
-                ? ifTree.elseBranch().accept(this, data).orElse(null)
-                : null);
+
+            Node elseBlock;
+            if (ifTree.elseBranch() != null) {
+                elseBlock = ifTree.elseBranch().accept(this, data).orElseThrow();
+            } else {
+                elseBlock = data.constructor.currentBlock(); // Empty block
+            }
+
             Node ifNode = data.constructor.newIf(condition, thenBlock, elseBlock);
             data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(ifNode));
             popSpan();

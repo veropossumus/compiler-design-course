@@ -25,13 +25,20 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
 
     @Override
     public Unit visit(BinaryOperationTree binaryOperationTree, Types data){
-        TYPES type1 = data.get(binaryOperationTree.lhs());
-        TYPES type2 = data.get(binaryOperationTree.rhs());
+        TYPES lhs = data.get(binaryOperationTree.lhs());
+        TYPES rhs = data.get(binaryOperationTree.rhs());
 
-        if(type1 != TYPES.INT) throwError(binaryOperationTree, type1, TYPES.INT);
-        if(type2 != TYPES.INT) throwError(binaryOperationTree, type2, TYPES.INT);
+        if(lhs != TYPES.INT) throwError(binaryOperationTree, lhs, TYPES.INT);
+        if(rhs != TYPES.INT) throwError(binaryOperationTree, rhs, TYPES.INT);
 
-        data.put(binaryOperationTree, TYPES.INT);
+        String operator = binaryOperationTree.operatorType().toString();
+        if (operator.equals(">") || operator.equals("<") || operator.equals(">=") ||
+                operator.equals("<=") || operator.equals("==") || operator.equals("!=")) {
+            data.put(binaryOperationTree, TYPES.BOOL);
+        } else {
+            data.put(binaryOperationTree, TYPES.INT);
+        }
+
         return NoOpVisitor.super.visit(binaryOperationTree, data);
     }
 
@@ -50,67 +57,67 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
 
     @Override
     public Unit visit(AssignmentTree assignmentTree, Types data) {
-        TYPES lhs = data.get(assignmentTree.lValue());
-        TYPES rhs = data.get(assignmentTree.expression());
-
-        if (lhs != rhs) {
-            throwError(assignmentTree, rhs, lhs);
+        TYPES lhs;
+        switch(assignmentTree.lValue()) {
+            case LValueIdentTree identTree ->
+                    lhs = data.get(identTree.name(), assignmentTree.block());
         }
-
+        TYPES rhs = data.get(assignmentTree.expression());
+        if(lhs != rhs) throwError(assignmentTree, rhs, lhs);
         data.put(assignmentTree, TYPES.VALID);
         return NoOpVisitor.super.visit(assignmentTree, data);
     }
 
     @Override
     public Unit visit(DeclarationTree declarationTree, Types data) {
-        TYPES t = getType(declarationTree.type());
+        TYPES declaredType = getType(declarationTree.type());
 
-        //TODO i gave up for now
+        if (declarationTree.initializer() != null) {
+            TYPES exprType = data.get(declarationTree.initializer());
+            if (exprType != declaredType) {
+                System.out.println("Declaring variable: " + declarationTree.name() + " with type: " + declaredType); // Debug
+                throwError(declarationTree, exprType, declaredType);
+            }
+        }
+
+        data.put(declarationTree.name(), declaredType, declarationTree.block());
         data.put(declarationTree, TYPES.VALID);
         return NoOpVisitor.super.visit(declarationTree, data);
     }
 
     @Override
-    public Unit visit(IfTree ifTree, Types data) {
-        if (data.get(ifTree.condition()) != TYPES.BOOL) {
-            throwError(ifTree, data.get(ifTree.condition()), TYPES.BOOL);
+    public Unit visit(WhileTree whileLoopTree, Types data) {
+        if (data.get(whileLoopTree.condition()) != TYPES.BOOL) {
+            throwError(whileLoopTree, data.get(whileLoopTree.condition()), TYPES.BOOL);
+        }
+        if (data.get(whileLoopTree.body()) != TYPES.VALID) {
+            throwError(whileLoopTree, data.get(whileLoopTree.body()), TYPES.VALID);
         }
 
-        if (data.get(ifTree.thenBranch()) != TYPES.VALID || data.get(ifTree.elseBranch()) != TYPES.VALID) {
-            throwError(ifTree, TYPES.VALID, TYPES.VALID); // Could refine but keep generic here
-        }
-
-        data.put(ifTree, TYPES.VALID);
-        return NoOpVisitor.super.visit(ifTree, data);
+        data.put(whileLoopTree, TYPES.VALID);
+        return NoOpVisitor.super.visit(whileLoopTree, data);
     }
 
     @Override
-    public Unit visit(WhileTree whileTree, Types data) {
-        if (data.get(whileTree.condition()) != TYPES.BOOL) {
-            throwError(whileTree, data.get(whileTree.condition()), TYPES.BOOL);
+    public Unit visit(ForTree forLoopTree, Types data) {
+        if (data.get(forLoopTree.init()) != TYPES.VALID) {
+            throwError(forLoopTree.init(), data.get(forLoopTree.init()), TYPES.VALID);
         }
-        if (data.get(whileTree.body()) != TYPES.VALID) {
-            throwError(whileTree, data.get(whileTree.body()), TYPES.VALID);
+        if (data.get(forLoopTree.condition()) != TYPES.BOOL) {
+            throwError(forLoopTree.condition(), data.get(forLoopTree.condition()), TYPES.BOOL);
+        }
+        if (data.get(forLoopTree.body()) != TYPES.VALID) {
+            throwError(forLoopTree.body(), data.get(forLoopTree.body()), TYPES.VALID);
         }
 
-        data.put(whileTree, TYPES.VALID);
-        return NoOpVisitor.super.visit(whileTree, data);
-    }
-
-    @Override
-    public Unit visit(ForTree forTree, Types data) {
-        if (data.get(forTree.init()) != TYPES.VALID) throwError(forTree.init(), data.get(forTree.init()), TYPES.VALID);
-        if (data.get(forTree.condition()) != TYPES.BOOL) throwError(forTree.condition(), data.get(forTree.condition()), TYPES.BOOL);
-        if (data.get(forTree.body()) != TYPES.VALID) throwError(forTree.body(), data.get(forTree.body()), TYPES.VALID);
-
-        data.put(forTree, TYPES.VALID);
-        return NoOpVisitor.super.visit(forTree, data);
+        data.put(forLoopTree, TYPES.VALID);
+        return NoOpVisitor.super.visit(forLoopTree, data);
     }
 
     @Override
     public Unit visit(ReturnTree returnTree, Types data) {
         TYPES exprType = data.get(returnTree.expression());
-        if (exprType != TYPES.INT) {
+        if (exprType != TYPES.INT && exprType != TYPES.BOOL) {
             throwError(returnTree, exprType, TYPES.INT);
         }
         data.put(returnTree, TYPES.VALID);
@@ -118,41 +125,37 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
     }
 
     @Override
-    public Unit visit(BreakTree breakTree, Types data) {
-        data.put(breakTree, TYPES.VALID);
-        return NoOpVisitor.super.visit(breakTree, data);
-    }
-
-    @Override
-    public Unit visit(ContinueTree continueTree, Types data) {
-        data.put(continueTree, TYPES.VALID);
-        return NoOpVisitor.super.visit(continueTree, data);
-    }
-
-    @Override
     public Unit visit(NegateTree negateTree, Types data) {
-        if (data.get(negateTree.expression()) != TYPES.INT) {
-            throwError(negateTree, data.get(negateTree.expression()), TYPES.INT);
+        TYPES exprType = data.get(negateTree.expression());
+
+        if (exprType != TYPES.INT) {
+            throwError(negateTree, exprType, TYPES.INT);
         }
         data.put(negateTree, TYPES.INT);
+
         return NoOpVisitor.super.visit(negateTree, data);
     }
 
+
     @Override
-    public Unit visit(TernaryOperationTree ternaryTree, Types data) {
-        if (data.get(ternaryTree.condition()) != TYPES.BOOL) {
-            throwError(ternaryTree, data.get(ternaryTree.condition()), TYPES.BOOL);
+    public Unit visit(IfTree conditionalTree, Types data) {
+        if (data.get(conditionalTree.condition()) != TYPES.BOOL) {
+            throwError(conditionalTree, data.get(conditionalTree.condition()), TYPES.BOOL);
         }
 
-        TYPES thenType = data.get(ternaryTree.trueExpression());
-        TYPES elseType = data.get(ternaryTree.falseExpression());
+        TYPES thenType = data.get(conditionalTree.thenBranch());
 
-        if (thenType != elseType) {
-            throwError(ternaryTree, thenType, elseType);
+        if (conditionalTree.elseBranch() != null) {
+            TYPES elseType = data.get(conditionalTree.elseBranch());
+            if (thenType != elseType) {
+                throwError(conditionalTree, elseType, thenType);
+            }
+            data.put(conditionalTree, thenType);
+        } else {
+            data.put(conditionalTree, TYPES.VALID);
         }
 
-        data.put(ternaryTree, thenType);
-        return NoOpVisitor.super.visit(ternaryTree, data);
+        return NoOpVisitor.super.visit(conditionalTree, data);
     }
 
     @Override
@@ -167,18 +170,27 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
 
     @Override
     public Unit visit(IdentExpressionTree identExpr, Types data) {
-        TYPES type = data.get(identExpr.name());
+        TYPES type = null;
+        int currentScope = identExpr.block();
+
+        while (currentScope >= 0 && type == null) {
+            type = data.get(identExpr.name(), currentScope);
+            currentScope--;
+        }
+
+        System.out.println("Looking up variable: " + identExpr.name() + ", found type: " + type);
         data.put(identExpr, type);
         return NoOpVisitor.super.visit(identExpr, data);
     }
 
     @Override
-    public Unit visit(ProgramTree programTree, Types data) {
-        return NoOpVisitor.super.visit(programTree, data);
-    }
-
-    @Override
     public Unit visit(FunctionTree functionTree, Types data) {
+
+        if (data.get(functionTree.body()) != TYPES.VALID) {
+            throwError(functionTree, data.get(functionTree.body()), TYPES.VALID);
+        }
+
+        data.put(functionTree, TYPES.VALID);
         return NoOpVisitor.super.visit(functionTree, data);
     }
 
