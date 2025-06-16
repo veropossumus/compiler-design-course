@@ -41,32 +41,33 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
         TYPES rhs = data.get(binaryOperationTree.rhs());
         String operator = binaryOperationTree.operatorType().toString();
 
-        if (operator.equals("=")) {
-            if (lhs == null || rhs == null || lhs != rhs) {
-                throwError(binaryOperationTree, rhs, lhs);
+        switch (operator) {
+            case "=" -> {
+                if (lhs == null || rhs == null || lhs != rhs) {
+                    throwError(binaryOperationTree, rhs, lhs);
+                }
+                data.put(binaryOperationTree, TYPES.VALID);
             }
-
-            data.put(binaryOperationTree, TYPES.VALID);
-            return NoOpVisitor.super.visit(binaryOperationTree, data);
-        }
-
-        if(lhs != TYPES.INT) throwError(binaryOperationTree, lhs, TYPES.INT);
-        if(rhs != TYPES.INT) throwError(binaryOperationTree, rhs, TYPES.INT);
-
-        System.out.println("Binary operation: " + operator + ", setting result type to: " +
-                (operator.equals(">") || operator.equals("<") || operator.equals(">=") ||
-                        operator.equals("<=") || operator.equals("==") || operator.equals("!=") ? "BOOL" : "INT"));
-
-
-        if (operator.equals(">") || operator.equals("<") || operator.equals(">=") ||
-                operator.equals("<=") || operator.equals("==") || operator.equals("!=")) {
-            data.put(binaryOperationTree, TYPES.BOOL);
-        } else {
-            data.put(binaryOperationTree, TYPES.INT);
+            case ">", "<", ">=", "<=", "==", "!=", "<<", ">>"-> {
+                if (lhs != TYPES.INT || rhs != TYPES.INT) {
+                    throwError(binaryOperationTree, lhs, TYPES.INT);
+                }
+                data.put(binaryOperationTree, TYPES.BOOL);
+            }
+            case "+", "-", "*", "/", "%" -> {
+                if (lhs != TYPES.INT || rhs != TYPES.INT) {
+                    throwError(binaryOperationTree, lhs, TYPES.INT);
+                }
+                data.put(binaryOperationTree, TYPES.INT);
+            }
+            default -> {
+                throwError(binaryOperationTree, lhs, TYPES.INT);
+            }
         }
 
         return NoOpVisitor.super.visit(binaryOperationTree, data);
     }
+
 
     @Override
     public Unit visit(BlockTree blockTree, Types data){

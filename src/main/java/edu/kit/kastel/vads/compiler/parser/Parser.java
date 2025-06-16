@@ -164,17 +164,18 @@ public class Parser {
         this.tokenSource.expectSeparator(SeparatorType.PAREN_CLOSE);
 
         enterNewScope();
-        BlockTree thenBlock = parseBlock();
+        StatementTree thenStmt = parseStatement();
         leaveCurrentBlock();
 
-        BlockTree elseBlock = null;
+        StatementTree elseStmt = null;
         if (this.tokenSource.peek().isKeyword(KeywordType.ELSE)) {
             this.tokenSource.expectKeyword(KeywordType.ELSE);
             enterNewScope();
-            elseBlock = parseBlock();
+            elseStmt = parseStatement();
             leaveCurrentBlock();
         }
-        return new IfTree(condition, thenBlock, elseBlock, ifKeyword.span());
+
+        return new IfTree(condition, thenStmt, elseStmt, ifKeyword.span());
     }
 
     public List<Scope> getScopes() {
@@ -319,6 +320,11 @@ public class Parser {
                 this.tokenSource.consume();
                 yield new BoolLiteralTree(false, span);
             }
+            case Operator(var type, _) when type == OperatorType.NOT -> {
+                Span span = this.tokenSource.consume().span();
+                yield new NegateTree(parseFactor(), span);
+            }
+
             case Token t -> throw new ParseException("invalid factor " + t);
         };
     }
@@ -359,7 +365,7 @@ public class Parser {
         }
         this.tokenSource.expectSeparator(SeparatorType.PAREN_CLOSE);
 
-        StatementTree body = parseStatement();
+        StatementTree body = parseOptionalBlockOrStatement();
 
         leaveCurrentLoopBlock();
         leaveCurrentBlock();
@@ -396,10 +402,23 @@ public class Parser {
 
         int currentLoopId = getCurrentLoopBlock();
 
-        BlockTree body = parseBlock();
+        StatementTree body = parseOptionalBlockOrStatement();
         leaveCurrentBlock();
         leaveCurrentLoopBlock();
 
         return new WhileTree(condition, body, currentLoopId);
     }
+
+
+    private StatementTree parseOptionalBlockOrStatement() {
+        if (this.tokenSource.peek().isSeparator(SeparatorType.BRACE_OPEN)) {
+            enterNewScope();
+            StatementTree block = parseBlock();
+            leaveCurrentBlock();
+            return block;
+        } else {
+            return parseStatement();
+        }
+    }
+
 }
