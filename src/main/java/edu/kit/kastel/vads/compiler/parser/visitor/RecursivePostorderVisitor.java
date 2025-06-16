@@ -104,6 +104,13 @@ public class RecursivePostorderVisitor<T, R> implements Visitor<T, R> {
     }
 
     @Override
+    public R visit(NotTree notTree, T data) {
+        R r = notTree.expression().accept(this, data);
+        r = this.visitor.visit(notTree, accumulate(data, r));
+        return r;
+    }
+
+    @Override
     public R visit(ProgramTree programTree, T data) {
         R r;
         T d = data;

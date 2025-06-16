@@ -235,6 +235,15 @@ public class SsaTranslation {
         }
 
         @Override
+        public Optional<Node> visit(NotTree notTree, SsaTranslation data) {
+            pushSpan(notTree);
+            Node node = notTree.expression().accept(this, data).orElseThrow();
+            Node res = data.constructor.newSub(data.constructor.newConstInt(0), node);
+            popSpan();
+            return Optional.of(res);
+        }
+
+        @Override
         public Optional<Node> visit(ProgramTree programTree, SsaTranslation data) {
             throw new UnsupportedOperationException();
         }

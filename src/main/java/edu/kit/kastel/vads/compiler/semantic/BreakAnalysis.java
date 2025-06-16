@@ -13,7 +13,6 @@ public class BreakAnalysis implements NoOpVisitor<BreakAnalysis.LoopContext> {
     @Override
     public Unit visit(WhileTree whileTree, LoopContext data) {
        data.loopDepth++;
-
         return NoOpVisitor.super.visit(whileTree, data);
     }
 
@@ -26,7 +25,7 @@ public class BreakAnalysis implements NoOpVisitor<BreakAnalysis.LoopContext> {
 
     @Override
     public Unit visit(ContinueTree continueTree, LoopContext data) {
-        if (data.loopDepth == 0) {
+        if (continueTree.loopId() == -1) {
             throw new SemanticException("continue not inside a loop");
         }
         return NoOpVisitor.super.visit(continueTree, data);
@@ -34,7 +33,7 @@ public class BreakAnalysis implements NoOpVisitor<BreakAnalysis.LoopContext> {
 
     @Override
     public Unit visit(BreakTree breakTree, LoopContext data) {
-        if (data.loopDepth == 0) {
+        if (breakTree.loopId() == -1) {
             throw new SemanticException("break not inside a loop");
         }
         return NoOpVisitor.super.visit(breakTree, data);

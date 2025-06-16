@@ -83,6 +83,11 @@ public class Printer {
                 printTree(expression);
                 print(")");
             }
+            case NotTree(var expression, _) -> {
+                print("-(");
+                printTree(expression);
+                print(")");
+            }
             case AssignmentTree(var lValue, var op, var expression, _) -> {
                 printTree(lValue);
                 space();

@@ -40,6 +40,7 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
         TYPES lhs = data.get(binaryOperationTree.lhs());
         TYPES rhs = data.get(binaryOperationTree.rhs());
         String operator = binaryOperationTree.operatorType().toString();
+        System.err.println("Debug: lhs=" + lhs + ", rhs=" + rhs + ", operator=" + operator);
 
         switch (operator) {
             case "=" -> {
@@ -47,6 +48,12 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
                     throwError(binaryOperationTree, rhs, lhs);
                 }
                 data.put(binaryOperationTree, TYPES.VALID);
+            }
+            case "&&", "||"-> { //this really shouldn't be here
+                if (lhs != TYPES.BOOL || rhs != TYPES.BOOL){
+                    throwError(binaryOperationTree, lhs, TYPES.BOOL);
+                }
+                data.put(binaryOperationTree, TYPES.BOOL);
             }
             case ">", "<", ">=", "<=", "==", "!="-> {
                 if (lhs != TYPES.INT || rhs != TYPES.INT) {
@@ -111,10 +118,8 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
 
         if (declarationTree.initializer() != null) {
             TYPES exprType = data.get(declarationTree.initializer());
-            System.out.println("Debug: Initializer type for " + declarationTree.name() + " is: " + exprType); // Debug
 
             if (exprType == null) {
-                System.out.println("Debug: Initializer type is null, skipping type check for " + declarationTree.name());
             } else if (exprType != declaredType) {
                 throwError(declarationTree, exprType, declaredType);
             }
@@ -180,6 +185,19 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
         return NoOpVisitor.super.visit(negateTree, data);
     }
 
+    @Override
+    public Unit visit(NotTree notTree, Types data) {
+        TYPES exprType = data.get(notTree.expression());
+
+        if (exprType != TYPES.BOOL) {
+            throwError(notTree, exprType, TYPES.BOOL);
+        }
+        data.put(notTree, TYPES.BOOL);
+
+        return NoOpVisitor.super.visit(notTree, data);
+    }
+
+
 
     @Override
     public Unit visit(IfTree conditionalTree, Types data) {
@@ -224,7 +242,6 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
             currentScope--;
         }
 
-        System.out.println("Looking up variable: " + identExpr.name() + ", found type: " + type);
         data.put(identExpr, type);
         return NoOpVisitor.super.visit(identExpr, data);
     }
