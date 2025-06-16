@@ -371,7 +371,7 @@ public class Parser {
         Keyword continueKeyword = this.tokenSource.expectKeyword(KeywordType.CONTINUE);
         int loopBlock = getCurrentLoopBlock();
         if (loopBlock == -1) {
-            throw new SemanticException("continue statement not in loop");
+            //throw new SemanticException("continue statement not in loop");
         }
         return new ContinueTree(continueKeyword.span(), loopBlock);
     }
@@ -380,7 +380,7 @@ public class Parser {
         Keyword breakKeyword = this.tokenSource.expectKeyword(KeywordType.BREAK);
         int loopBlock = getCurrentLoopBlock();
         if (loopBlock == -1) {
-            throw new SemanticException("break statement not in loop");
+            //throw new SemanticException("break statement not in loop");
         }
         return new BreakTree(breakKeyword.span(), loopBlock);
     }
