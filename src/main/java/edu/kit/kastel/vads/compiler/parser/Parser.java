@@ -292,6 +292,24 @@ public class Parser {
         return lhs;
     }
 
+    private boolean isAssignmentOperator(OperatorType opType) {
+        return switch (opType) {
+            case ASSIGN,           // =
+                 ASSIGN_PLUS,      // +=
+                 ASSIGN_MINUS,     // -=
+                 ASSIGN_MUL,  // *=
+                 ASSIGN_DIV ,    // /=
+                 ASSIGN_MOD,    // %=
+                 ASSIGN_SHIFT_LEFT,    // <<=
+                 ASSIGN_SHIFT_RIGHT,
+                 ASSIGN_BITWISE_AND,
+                 ASSIGN_BITWISE_XOR,
+                 ASSIGN_BITWISE_OR
+                    -> true;
+            default -> false;
+        };
+    }
+
     private ExpressionTree parseFactor() {
         return switch (this.tokenSource.peek()) {
             case Separator(var type, _) when type == SeparatorType.PAREN_OPEN -> {

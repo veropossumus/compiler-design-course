@@ -344,9 +344,8 @@ public class SsaTranslation {
             Node trueExpr = ternaryOperationTree.trueExpression().accept(this, data).orElseThrow();
             Node falseExpr = ternaryOperationTree.falseExpression().accept(this, data).orElseThrow();
             Node ternaryNode = data.constructor.newIf(condition, trueExpr, falseExpr);
-            data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(ternaryNode));
             popSpan();
-            return NOT_AN_EXPRESSION;
+            return Optional.of(ternaryNode);
         }
 
         @Override
@@ -355,8 +354,6 @@ public class SsaTranslation {
         }
 
         private Node projResultDivMod(SsaTranslation data, Node divMod) {
-            // make sure we actually have a div or a mod, as optimizations could
-            // have changed it to something else already
             if (!(divMod instanceof DivNode || divMod instanceof ModNode)) {
                 return divMod;
             }

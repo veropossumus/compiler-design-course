@@ -48,13 +48,19 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
                 }
                 data.put(binaryOperationTree, TYPES.VALID);
             }
-            case ">", "<", ">=", "<=", "==", "!=", "<<", ">>"-> {
+            case ">", "<", ">=", "<=", "==", "!="-> {
                 if (lhs != TYPES.INT || rhs != TYPES.INT) {
                     throwError(binaryOperationTree, lhs, TYPES.INT);
                 }
                 data.put(binaryOperationTree, TYPES.BOOL);
             }
-            case "+", "-", "*", "/", "%" -> {
+            case "+", "-", "*", "/", "%", "&", "|", "<<", ">>" -> {
+                if (lhs != TYPES.INT || rhs != TYPES.INT) {
+                    throwError(binaryOperationTree, lhs, TYPES.INT);
+                }
+                data.put(binaryOperationTree, TYPES.INT);
+            }
+            case "+=", "-=", "*=", "/=", "%=", "^=", "&=", "|=", ">>=", "<<=" -> { //They shouldn't be here at all actually but at the assignment tree??
                 if (lhs != TYPES.INT || rhs != TYPES.INT) {
                     throwError(binaryOperationTree, lhs, TYPES.INT);
                 }
@@ -105,8 +111,11 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
 
         if (declarationTree.initializer() != null) {
             TYPES exprType = data.get(declarationTree.initializer());
-            if (exprType != declaredType) {
-                System.out.println("Declaring variable: " + declarationTree.name() + " with type: " + declaredType); // Debug
+            System.out.println("Debug: Initializer type for " + declarationTree.name() + " is: " + exprType); // Debug
+
+            if (exprType == null) {
+                System.out.println("Debug: Initializer type is null, skipping type check for " + declarationTree.name());
+            } else if (exprType != declaredType) {
                 throwError(declarationTree, exprType, declaredType);
             }
         }
