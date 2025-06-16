@@ -49,7 +49,7 @@ public class Main {
             }
         }
 
-        // TODO: generate assembly and invoke gcc instead of generating abstract assembly
+        // generate assembly and invoke gcc instead of generating abstract assembly
         String asm = new CodeGenerator().generateCode(graphs);
         Path asmFile = output.resolveSibling(output.getFileName().toString() + ".s");
         Files.writeString(asmFile, asm);

@@ -17,11 +17,6 @@ public interface NoOpVisitor<T> extends Visitor<T, Unit> {
     }
 
     @Override
-    default Unit visit(BinaryBoolOperationTree binaryBoolOperationTree, T data) {
-        return Unit.INSTANCE;
-    }
-
-    @Override
     default Unit visit(BlockTree blockTree, T data) {
         return Unit.INSTANCE;
     }
@@ -104,6 +99,11 @@ public interface NoOpVisitor<T> extends Visitor<T, Unit> {
 
     @Override
     default Unit visit(TernaryOperationTree ternaryOperationTree, T data) {
+        return Unit.INSTANCE;
+    }
+
+    @Override
+    default Unit visit(LogicalNotTree logicalNotTree, T data) {
         return Unit.INSTANCE;
     }
 }

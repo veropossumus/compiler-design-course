@@ -12,16 +12,25 @@ public class BreakAnalysis implements NoOpVisitor<BreakAnalysis.LoopContext> {
 
     @Override
     public Unit visit(WhileTree whileTree, LoopContext data) {
-       data.loopDepth++;
-
-        return NoOpVisitor.super.visit(whileTree, data);
+        data.loopDepth++;
+        whileTree.condition().accept(this, data);
+        whileTree.body().accept(this, data);
+        data.loopDepth--;
+        return null;
     }
 
     @Override
     public Unit visit(ForTree forTree, LoopContext data) {
         data.loopDepth++;
-
-        return NoOpVisitor.super.visit(forTree, data);
+        if (forTree.init() != null)
+            forTree.init().accept(this, data);
+        if (forTree.condition() != null)
+            forTree.condition().accept(this, data);
+        if (forTree.update() != null)
+            forTree.update().accept(this, data);
+        forTree.body().accept(this, data);
+        data.loopDepth--;
+        return null;
     }
 
     @Override

@@ -65,21 +65,16 @@ public class Printer {
                 printTree(rhs);
                 print(")");
             }
-            case BinaryBoolOperationTree(var lhs, var rhs, var op) -> {
-                print("(");
-                printTree(lhs);
-                print(")");
-                space();
-                this.builder.append(op);
-                space();
-                print("(");
-                printTree(rhs);
-                print(")");
-            }
+
             case LiteralTree(var value, _, _) -> this.builder.append(value);
             case BoolLiteralTree(var value, _) -> this.builder.append(value);
             case NegateTree(var expression, _) -> {
                 print("-(");
+                printTree(expression);
+                print(")");
+            }
+            case LogicalNotTree(var expression) -> {
+                print("!(");
                 printTree(expression);
                 print(")");
             }

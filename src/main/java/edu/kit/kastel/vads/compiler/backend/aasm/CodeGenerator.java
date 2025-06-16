@@ -84,6 +84,7 @@ public class CodeGenerator {
             case BreakNode breakNode -> generateBreak(builder, breakNode);
             case IfNode ifNode -> generateIf(builder, registers, ifNode);
             case ContinueNode continueNode -> generateContinue(builder, continueNode);
+            case LogicalNotNode logicalNotNode -> generateLogicalNot(builder, registers, logicalNotNode);
 
             case BitwiseAndNode bitwiseAnd -> binary(builder, registers, bitwiseAnd, "andl");
             case BitwiseOrNode bitwiseOr -> binary(builder, registers, bitwiseOr, "orl");
@@ -152,7 +153,12 @@ public class CodeGenerator {
                 case "addl" -> lc.value() + rc.value();
                 case "subl" -> lc.value() - rc.value();
                 case "imull" -> lc.value() * rc.value();
-                default -> throw new IllegalStateException("This shouldn't happen hopefully");
+                case "andl" -> lc.value() & rc.value();
+                case "orl"  -> lc.value() | rc.value();
+                case "xorl" -> lc.value() ^ rc.value();
+                case "shll" -> lc.value() << rc.value();
+                case "shrl" -> lc.value() >>> rc.value();
+                default -> throw new IllegalStateException("unknown opcode in binary: " + opcode + " for node " + node.getClass().getSimpleName());
             };
             builder.append("    movl $").append(folded).append(", ").append(result).append("\n");
             return;
@@ -179,72 +185,33 @@ public class CodeGenerator {
                             .append(result)
                             .append("\n");
                 }
-            } else {
-                if (!result.equals(left)) {
-                    builder.append("    movl ")
-                            .append(left)
-                            .append(", ")
-                            .append(result)
-                            .append("\n");
-                }
+                return;
+            }
+        }
+
+        if (!result.equals(left)) {
+            builder.append("    movl ")
+                    .append(left)
+                    .append(", ")
+                    .append(result)
+                    .append("\n");
+        }
+
+        String right = PhysicalRegisterMapper.map(registers.get(rightNode));
+
+        switch (opcode) {
+            case "addl":
+            case "andl":
+            case "orl":
+            case "xorl":
                 if (rightNode instanceof ConstIntNode constNode) {
-                    builder.append("    subl $")
+                    builder.append("    ")
+                            .append(opcode)
+                            .append(" $")
                             .append(constNode.value())
                             .append(", ")
                             .append(result)
                             .append("\n");
-                } else {
-                    String right = PhysicalRegisterMapper.map(registers.get(rightNode));
-                    builder.append("    subl ")
-                            .append(right)
-                            .append(", ")
-                            .append(result)
-                            .append("\n");
-                }
-            }
-        } else {
-            if (!result.equals(left)) {
-                builder.append("    movl ")
-                        .append(left)
-                        .append(", ")
-                        .append(result)
-                        .append("\n");
-            }
-
-            if (rightNode instanceof ConstIntNode constNode) {
-                builder.append("    ")
-                        .append(opcode)
-                        .append(" $")
-                        .append(constNode.value())
-                        .append(", ")
-                        .append(result)
-                        .append("\n");
-            } else {
-                String right = PhysicalRegisterMapper.map(registers.get(rightNode));
-                if (opcode.equals("imull")) {
-                    builder.append("    pushq %rax\n");
-                    builder.append("    pushq %rdx\n");
-
-                    // %eax for multiplication
-                    if (!result.equals("%eax")) {
-                        builder.append("    movl ")
-                                .append(result)
-                                .append(", %eax\n");
-                    }
-
-                    builder.append("    imull ")
-                            .append(right)
-                            .append("\n");
-
-                    // move back
-                    if (!result.equals("%eax")) {
-                        builder.append("    movl %eax, ")
-                                .append(result)
-                                .append("\n");
-                    }
-
-                    builder.append("    popq %rdx\n");
-                    builder.append("    popq %rax\n");
                 } else {
                     builder.append("    ")
                             .append(opcode)
@@ -254,7 +221,62 @@ public class CodeGenerator {
                             .append(result)
                             .append("\n");
                 }
-            }
+                break;
+            case "imull":
+                if (rightNode instanceof ConstIntNode constNode) {
+                    builder.append("    imull $")
+                            .append(constNode.value())
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                } else {
+                    builder.append("    imull ")
+                            .append(right)
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                }
+                break;
+            case "subl":
+                if (rightNode instanceof ConstIntNode constNode) {
+                    builder.append("    subl $")
+                            .append(constNode.value())
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                } else {
+                    builder.append("    subl ")
+                            .append(right)
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                }
+                break;
+            case "shll":
+            case "shrl":
+                if (rightNode instanceof ConstIntNode constNode) {
+                    builder.append("    ")
+                            .append(opcode)
+                            .append(" $")
+                            .append(constNode.value())
+                            .append(", ")
+                            .append(result)
+                            .append("\n");
+                } else {
+                    if (!right.equals("%cl")) {
+                        builder.append("    movb ")
+                                .append(right)
+                                .append(", %cl\n");
+                    }
+                    builder.append("    ")
+                            .append(opcode)
+                            .append(" %cl, ")
+                            .append(result)
+                            .append("\n");
+                }
+                break;
+            default:
+                throw new IllegalStateException("unknown opcode in binary: " + opcode + " for node " + node.getClass().getSimpleName());
         }
     }
 
@@ -313,15 +335,25 @@ public class CodeGenerator {
                 .append("\n");
     }
 
-    private void generateBoolConstant(StringBuilder builder, Map<Node, Register> registers, ConstBoolNode node) {
-        String dest = PhysicalRegisterMapper.map(registers.get(node));
+    // private void generateBoolConstant(StringBuilder builder, Map<Node, Register> registers, ConstBoolNode node) {
+    //     String dest = PhysicalRegisterMapper.map(registers.get(node));
 
-        builder.append("    movl $")
-                .append(node.value())
-                .append(", ")
-                .append(dest)
-                .append("\n");
-    }
+    //     builder.append("    movl $")
+    //             .append(node.value())
+    //             .append(", ")
+    //             .append(dest)
+    //             .append("\n");
+    // }
+
+    private void generateBoolConstant(StringBuilder builder, Map<Node, Register> registers, ConstBoolNode node) {
+    String dest = PhysicalRegisterMapper.map(registers.get(node));
+    int value = node.value() ? 1 : 0;
+    builder.append("    movl $")
+           .append(value) // tests dont terminate with this for some reason?
+           .append(", ")
+           .append(dest)
+           .append("\n");
+}
 
     private void generateIf(StringBuilder builder, Map<Node, Register> registers, IfNode node) {
         String conditionRegister = PhysicalRegisterMapper.map(
@@ -452,5 +484,18 @@ public class CodeGenerator {
                 return false;
         }
         return false;
+    }
+
+    private void generateLogicalNot(
+            StringBuilder builder,
+            Map<Node, Register> registers,
+            LogicalNotNode node) {
+
+        String dest = PhysicalRegisterMapper.map(registers.get(node));
+        String src = PhysicalRegisterMapper.map(registers.get(node.operand()));
+
+        builder.append("    cmpl $0, ").append(src).append("\n");
+        builder.append("    sete %al\n");
+        builder.append("    movzbl %al, ").append(dest).append("\n");
     }
 }

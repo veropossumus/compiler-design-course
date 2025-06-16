@@ -29,14 +29,6 @@ public class RecursivePostorderVisitor<T, R> implements Visitor<T, R> {
     }
 
     @Override
-    public R visit(BinaryBoolOperationTree binaryBoolOperationTree, T data) {
-        R r = binaryBoolOperationTree.lhs().accept(this, data);
-        r = binaryBoolOperationTree.rhs().accept(this, accumulate(data, r));
-        r = this.visitor.visit(binaryBoolOperationTree, accumulate(data, r));
-        return r;
-    }
-
-    @Override
     public R visit(BlockTree blockTree, T data) {
         R r;
         T d = data;
@@ -81,7 +73,8 @@ public class RecursivePostorderVisitor<T, R> implements Visitor<T, R> {
     }
 
     @Override
-    public R visit(BoolLiteralTree boolLiteralTree, T data) {return this.visitor.visit(boolLiteralTree, data);
+    public R visit(BoolLiteralTree boolLiteralTree, T data) {
+        return this.visitor.visit(boolLiteralTree, data);
     }
 
     @Override
@@ -164,6 +157,13 @@ public class RecursivePostorderVisitor<T, R> implements Visitor<T, R> {
     @Override
     public R visit(ContinueTree continueTree, T data) {
         return this.visitor.visit(continueTree, data);
+    }
+
+    @Override
+    public R visit(LogicalNotTree logicalNotTree, T data) {
+        R r = logicalNotTree.expression().accept(this, data);
+        r = this.visitor.visit(logicalNotTree, accumulate(data, r));
+        return r;
     }
 
     @Override

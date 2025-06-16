@@ -249,4 +249,8 @@ class GraphConstructor {
     public Node newLogicalOr(Node left, Node right) {
         return this.optimizer.transform(new LogicalOrNode(currentBlock(), left, right));
     }
+
+    public Node newLogicalNot(Node operand) {
+        return this.optimizer.transform(new LogicalNotNode(currentBlock(), operand));
+    }
 }

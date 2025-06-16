@@ -215,7 +215,7 @@ public class YCompPrinter {
             case BreakNode _ -> VcgColor.CONTROL_FLOW;
             case IfNode _ -> VcgColor.CONTROL_FLOW;
             case ContinueNode _ -> VcgColor.CONTROL_FLOW;
-
+            case LogicalNotNode _ -> VcgColor.NORMAL;
             case ProjNode proj -> {
                 if (proj.projectionInfo() == SimpleProjectionInfo.SIDE_EFFECT) {
                     yield VcgColor.MEMORY;

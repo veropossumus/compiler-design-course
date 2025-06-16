@@ -59,7 +59,6 @@ class VariableStatusAnalysis implements NoOpVisitor<Namespace<VariableStatusAnal
                 : VariableStatus.INITIALIZED;
         data.putInCurrentScope(declarationTree.name(), status);
 
-        // Visit the initializer if it exists (important for expressions like `int x = y + 1`)
         if (declarationTree.initializer() != null) {
             declarationTree.initializer().accept(this, data);
         }

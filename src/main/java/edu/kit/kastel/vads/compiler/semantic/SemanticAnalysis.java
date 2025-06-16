@@ -18,13 +18,13 @@ public class SemanticAnalysis {
         this.program.accept(new RecursivePostorderVisitor<>(new ReturnAnalysis()), new ReturnAnalysis.ReturnState());
 
         int MAX_BLOCKS = this.program.scopes().size();
-        @SuppressWarnings("unchecked") //TODO
+        @SuppressWarnings("unchecked") // TODO
         Namespace<TypeAnalysis.TYPES>[] namespaces = (Namespace<TypeAnalysis.TYPES>[]) new Namespace[MAX_BLOCKS];
         for (int i = 0; i < MAX_BLOCKS; i++) {
             namespaces[i] = new Namespace<>();
         }
         Types types = new Types(namespaces);
-        this.program.accept(new RecursivePostorderVisitor<>(new BreakAnalysis()), new BreakAnalysis.LoopContext());
+        this.program.accept(new BreakAnalysis(), new BreakAnalysis.LoopContext());
         this.program.accept(new RecursivePostorderVisitor<>(new LoopAnalysis()), new LoopAnalysis.Loopy());
         this.program.accept(new RecursivePostorderVisitor<>(new TypeAnalysis()), types);
 

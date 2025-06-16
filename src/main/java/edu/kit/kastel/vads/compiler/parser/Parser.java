@@ -283,10 +283,17 @@ public class Parser {
 
             int nextMinPrec = right ? prec : prec + 1;
             ExpressionTree rhs = parseExprPrec(nextMinPrec);
-            if (op.type() == OperatorType.OR || op.type() == OperatorType.AND ){
-                lhs = new BinaryBoolOperationTree(lhs, rhs,op.type());
+
+            if (op.type() == OperatorType.AND) {
+                lhs = new TernaryOperationTree(lhs, rhs, new BoolLiteralTree(false, op.span()));
+                continue;
             }
-            else{lhs = new BinaryOperationTree(lhs, rhs, op.type());}
+            if (op.type() == OperatorType.OR) {
+                lhs = new TernaryOperationTree(lhs, new BoolLiteralTree(true, op.span()), rhs);
+                continue;
+            }
+
+            lhs = new BinaryOperationTree(lhs, rhs, op.type());
         }
 
         return lhs;
