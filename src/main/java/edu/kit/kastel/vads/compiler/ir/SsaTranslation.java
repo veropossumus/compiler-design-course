@@ -321,14 +321,20 @@ public class SsaTranslation {
         @Override
         public Optional<Node> visit(IfTree ifTree, SsaTranslation data) {
             pushSpan(ifTree);
+
             Node condition = ifTree.condition().accept(this, data).orElseThrow();
-            Node thenBlock = ifTree.thenBranch().accept(this, data).orElseThrow();
+
+            Node thenBlock = ifTree.thenBranch()
+                    .accept(this, data)
+                    .orElse(data.constructor.currentBlock());
 
             Node elseBlock;
             if (ifTree.elseBranch() != null) {
-                elseBlock = ifTree.elseBranch().accept(this, data).orElseThrow();
+                elseBlock = ifTree.elseBranch()
+                        .accept(this, data)
+                        .orElse(data.constructor.currentBlock());
             } else {
-                elseBlock = data.constructor.currentBlock(); // Empty block
+                elseBlock = data.constructor.currentBlock();
             }
 
             Node ifNode = data.constructor.newIf(condition, thenBlock, elseBlock);
