@@ -152,8 +152,14 @@ public class CodeGenerator {
                 case "addl" -> lc.value() + rc.value();
                 case "subl" -> lc.value() - rc.value();
                 case "imull" -> lc.value() * rc.value();
+                case "andl" -> lc.value() & rc.value();
+                case "orl"  -> lc.value() | rc.value();
+                case "xorl" -> lc.value() ^ rc.value();
+                case "shll" -> lc.value() << rc.value();
+                case "shrl" -> lc.value() >>> rc.value();
                 default -> throw new IllegalStateException("This shouldn't happen hopefully");
             };
+
             builder.append("    movl $").append(folded).append(", ").append(result).append("\n");
             return;
         }
