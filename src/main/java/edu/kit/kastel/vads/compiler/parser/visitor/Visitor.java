@@ -44,5 +44,6 @@ public interface Visitor<T, R> {
 
     R visit(BoolLiteralTree boolLiteralTree, T data);
 
-    R visit(LogicalNotTree logicalNotTree, T data);
-}
+    R visit(BinaryBoolOperationTree binaryBoolOperationTree, T data);
+
+    R visit(LogicalNotTree logicalNotTree, T data);}

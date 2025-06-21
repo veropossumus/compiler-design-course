@@ -140,6 +140,22 @@ public class SsaTranslation {
         }
 
         @Override
+        public Optional<Node> visit(BinaryBoolOperationTree binaryBoolOperationTree, SsaTranslation data) {
+            pushSpan(binaryBoolOperationTree);
+            Node lhs = binaryBoolOperationTree.lhs().accept(this, data).orElseThrow();
+            Node rhs = binaryBoolOperationTree.rhs().accept(this, data).orElseThrow();
+            Node res = switch (binaryBoolOperationTree.operatorType()) {
+                case AND -> data.constructor.newLogicalAnd(lhs, rhs);
+                case OR -> data.constructor.newLogicalOr(lhs, rhs);
+                default ->
+                    throw new IllegalArgumentException(
+                            "not a binary expression operator " + binaryBoolOperationTree.operatorType());
+            };
+            popSpan();
+            return Optional.of(res);
+        }
+
+        @Override
         public Optional<Node> visit(BlockTree blockTree, SsaTranslation data) {
             pushSpan(blockTree);
 
@@ -312,7 +328,7 @@ public class SsaTranslation {
             if (ifTree.elseBranch() != null) {
                 elseBlock = ifTree.elseBranch().accept(this, data).orElseThrow();
             } else {
-                elseBlock = data.constructor.currentBlock();
+                elseBlock = data.constructor.currentBlock(); // Empty block
             }
 
             Node ifNode = data.constructor.newIf(condition, thenBlock, elseBlock);
@@ -348,8 +364,6 @@ public class SsaTranslation {
         }
 
         private Node projResultDivMod(SsaTranslation data, Node divMod) {
-            // make sure we actually have a div or a mod, as optimizations could
-            // have changed it to something else already
             if (!(divMod instanceof DivNode || divMod instanceof ModNode)) {
                 return divMod;
             }
@@ -357,8 +371,6 @@ public class SsaTranslation {
             data.constructor.writeCurrentSideEffect(projSideEffect);
             return data.constructor.newResultProj(divMod);
         }
-
-        
     }
 
 }

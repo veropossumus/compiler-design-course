@@ -84,7 +84,6 @@ public class CodeGenerator {
             case BreakNode breakNode -> generateBreak(builder, breakNode);
             case IfNode ifNode -> generateIf(builder, registers, ifNode);
             case ContinueNode continueNode -> generateContinue(builder, continueNode);
-            case LogicalNotNode logicalNotNode -> generateLogicalNot(builder, registers, logicalNotNode);
 
             case BitwiseAndNode bitwiseAnd -> binary(builder, registers, bitwiseAnd, "andl");
             case BitwiseOrNode bitwiseOr -> binary(builder, registers, bitwiseOr, "orl");
@@ -158,7 +157,7 @@ public class CodeGenerator {
                 case "xorl" -> lc.value() ^ rc.value();
                 case "shll" -> lc.value() << rc.value();
                 case "shrl" -> lc.value() >>> rc.value();
-                default -> throw new IllegalStateException("unknown opcode in binary: " + opcode + " for node " + node.getClass().getSimpleName());
+                default -> throw new IllegalStateException("unknwon opcode in binary: " + opcode + " node " + node.getClass().getSimpleName());
             };
             builder.append("    movl $").append(folded).append(", ").append(result).append("\n");
             return;
@@ -334,16 +333,6 @@ public class CodeGenerator {
                 .append(dest)
                 .append("\n");
     }
-
-    // private void generateBoolConstant(StringBuilder builder, Map<Node, Register> registers, ConstBoolNode node) {
-    //     String dest = PhysicalRegisterMapper.map(registers.get(node));
-
-    //     builder.append("    movl $")
-    //             .append(node.value())
-    //             .append(", ")
-    //             .append(dest)
-    //             .append("\n");
-    // }
 
     private void generateBoolConstant(StringBuilder builder, Map<Node, Register> registers, ConstBoolNode node) {
     String dest = PhysicalRegisterMapper.map(registers.get(node));
