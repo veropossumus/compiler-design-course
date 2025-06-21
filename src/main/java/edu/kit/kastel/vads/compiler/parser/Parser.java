@@ -347,7 +347,7 @@ public class Parser {
             }
             case Operator(var type, _) when type == OperatorType.NOT -> {
                 Span span = this.tokenSource.consume().span();
-                yield new NotTree(parseFactor(), span);
+                yield new LogicalNotTree(parseFactor(), span);
             }
 
             case Token t -> throw new ParseException("invalid factor " + t);

@@ -140,22 +140,6 @@ public class SsaTranslation {
         }
 
         @Override
-        public Optional<Node> visit(BinaryBoolOperationTree binaryBoolOperationTree, SsaTranslation data) {
-            pushSpan(binaryBoolOperationTree);
-            Node lhs = binaryBoolOperationTree.lhs().accept(this, data).orElseThrow();
-            Node rhs = binaryBoolOperationTree.rhs().accept(this, data).orElseThrow();
-            Node res = switch (binaryBoolOperationTree.operatorType()) {
-                case AND -> data.constructor.newLogicalAnd(lhs, rhs);
-                case OR -> data.constructor.newLogicalOr(lhs, rhs);
-                default ->
-                    throw new IllegalArgumentException(
-                            "not a binary expression operator " + binaryBoolOperationTree.operatorType());
-            };
-            popSpan();
-            return Optional.of(res);
-        }
-
-        @Override
         public Optional<Node> visit(BlockTree blockTree, SsaTranslation data) {
             pushSpan(blockTree);
 

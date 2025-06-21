@@ -84,6 +84,8 @@ public class CodeGenerator {
             case BreakNode breakNode -> generateBreak(builder, breakNode);
             case IfNode ifNode -> generateIf(builder, registers, ifNode);
             case ContinueNode continueNode -> generateContinue(builder, continueNode);
+            case LogicalNotNode logicalNotNode -> generateLogicalNot(builder, registers, logicalNotNode);
+
 
             case BitwiseAndNode bitwiseAnd -> binary(builder, registers, bitwiseAnd, "andl");
             case BitwiseOrNode bitwiseOr -> binary(builder, registers, bitwiseOr, "orl");

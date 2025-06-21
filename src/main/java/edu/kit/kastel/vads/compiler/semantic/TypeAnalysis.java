@@ -4,6 +4,7 @@ import edu.kit.kastel.vads.compiler.parser.type.BasicType;
 import edu.kit.kastel.vads.compiler.parser.visitor.NoOpVisitor;
 import edu.kit.kastel.vads.compiler.parser.visitor.Unit;
 import java.util.List;
+
 public class TypeAnalysis implements NoOpVisitor<Types> {
     enum TYPES{
         BOOL, VALID, INT
@@ -13,18 +14,6 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
             case BasicType.BOOL -> TYPES.BOOL;
             case BasicType.INT  -> TYPES.INT;
         };
-    }
-
-    @Override
-    public Unit visit(BinaryBoolOperationTree binaryBoolOperationTree, Types data){
-        TYPES lhs = data.get(binaryBoolOperationTree.lhs());
-        TYPES rhs = data.get(binaryBoolOperationTree.rhs());
-
-        if(lhs != TYPES.INT) throwError(binaryBoolOperationTree, lhs, TYPES.INT);
-        if(rhs != TYPES.INT) throwError(binaryBoolOperationTree, rhs, TYPES.INT);
-
-        data.put(binaryBoolOperationTree, TYPES.BOOL);
-        return NoOpVisitor.super.visit(binaryBoolOperationTree, data);
     }
 
     @Override
