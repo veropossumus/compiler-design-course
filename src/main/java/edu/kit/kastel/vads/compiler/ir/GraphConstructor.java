@@ -2,12 +2,15 @@ package edu.kit.kastel.vads.compiler.ir;
 
 import edu.kit.kastel.vads.compiler.ir.node.*;
 import edu.kit.kastel.vads.compiler.ir.optimize.Optimizer;
+import edu.kit.kastel.vads.compiler.parser.symbol.IdentName;
 import edu.kit.kastel.vads.compiler.parser.symbol.Name;
+import edu.kit.kastel.vads.compiler.ir.util.FunctionSignature;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.List;
 
 class GraphConstructor {
 
@@ -20,12 +23,44 @@ class GraphConstructor {
     private final Set<Block> sealedBlocks = new HashSet<>();
     private Block currentBlock;
 
+    private final ProgramIr programIr;
+    private final edu.kit.kastel.vads.compiler.ir.util.FunctionSignature currentFunctionSignature;
+
+    public GraphConstructor(Optimizer optimizer, String functionName, edu.kit.kastel.vads.compiler.ir.util.FunctionSignature signature, ProgramIr programIr) {
+        this.optimizer = optimizer;
+        this.graph = new IrGraph(functionName);
+        this.currentBlock = this.graph.startBlock();
+        this.programIr = programIr;
+        this.currentFunctionSignature = signature;
+
+        sealBlock(this.currentBlock);
+
+        initializeParameters();
+    }
+
     public GraphConstructor(Optimizer optimizer, String name) {
         this.optimizer = optimizer;
         this.graph = new IrGraph(name);
         this.currentBlock = this.graph.startBlock();
-        // the start block never gets any more predecessors
+        this.programIr = null;
+        this.currentFunctionSignature = null;
+
         sealBlock(this.currentBlock);
+    }
+
+    private void initializeParameters() {
+        if (currentFunctionSignature == null) return;
+
+        List<String> paramNames = currentFunctionSignature.parameterNames();
+        for (int i = 0; i < paramNames.size(); i++) {
+            String paramName = paramNames.get(i);
+            Name paramVarName = new IdentName(paramName);
+
+            Node startNode = newStart();
+            Node paramNode = new ParamNode(currentBlock(), startNode, i);
+
+            writeVariable(paramVarName, currentBlock(), paramNode);
+        }
     }
 
     public Node newStart() {
@@ -55,6 +90,39 @@ class GraphConstructor {
 
     public Node newReturn(Node result) {
         return new ReturnNode(currentBlock(), readCurrentSideEffect(), result);
+    }
+
+    public Node newFunctionCall(String functionName, List<Node> arguments) {
+        if (programIr == null) {
+            throw new IllegalStateException("Function calls require ProgramIr context");
+        }
+
+        edu.kit.kastel.vads.compiler.ir.util.FunctionSignature signature = programIr.functionSignature(functionName);
+        if (signature == null) {
+            throw new IllegalArgumentException("Unknown function: " + functionName);
+        }
+
+        if (arguments.size() != signature.getParameterCount()) {
+            throw new IllegalArgumentException("Function " + functionName + " expects " +
+                    signature.getParameterCount() + " arguments, got " + arguments.size());
+        }
+
+        return new FunctionCallNode(currentBlock(), readCurrentSideEffect(), functionName, arguments);
+    }
+
+    public Node newPrint(Node argument) {
+        List<Node> args = List.of(argument);
+        return new FunctionCallNode(currentBlock(), readCurrentSideEffect(), "print", args);
+    }
+
+    public Node newRead() {
+        List<Node> args = List.of();
+        return new FunctionCallNode(currentBlock(), readCurrentSideEffect(), "read", args);
+    }
+
+    public Node newFlush() {
+        List<Node> args = List.of();
+        return new FunctionCallNode(currentBlock(), readCurrentSideEffect(), "flush", args);
     }
 
     public Node newConstInt(int value) {
@@ -94,6 +162,10 @@ class GraphConstructor {
 
     public IrGraph graph() {
         return this.graph;
+    }
+
+    public ProgramIr programIr() {
+        return this.programIr;
     }
 
     void writeVariable(Name variable, Block block, Node value) {

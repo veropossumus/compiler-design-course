@@ -101,6 +101,8 @@ public class CodeGenerator {
 
             case LogicalAndNode logicalAnd -> generateLogicalAnd(builder, registers, logicalAnd);
             case LogicalOrNode logicalOr -> generateLogicalOr(builder, registers, logicalOr);
+            case FunctionCallNode functionCall -> {return;} //TODO
+            case ParamNode par -> {return; }
 
             case Phi _ -> throw new UnsupportedOperationException("phi");
             case Block _,ProjNode _,StartNode _ -> {

@@ -154,6 +154,12 @@ public class Printer {
                 print(" : ");
                 printTree(elseBranch);
             }
+            case FunctionCallTree(var name, var parameters) -> {
+                print(name);
+                print("(");
+                print(parameters.toString());
+                print(")");
+            }
 
         }
     }

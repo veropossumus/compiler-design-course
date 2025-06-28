@@ -228,6 +228,8 @@ public class YCompPrinter {
             }
             case ReturnNode _ -> VcgColor.CONTROL_FLOW;
             case StartNode _ -> VcgColor.CONTROL_FLOW;
+            case FunctionCallNode _ -> VcgColor.CONTROL_FLOW;
+            case ParamNode _ -> VcgColor.NORMAL;
         };
     }
 

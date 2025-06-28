@@ -185,6 +185,14 @@ public class SsaTranslation {
         }
 
         @Override
+        public Optional<Node> visit(FunctionCallTree functionCallTree, SsaTranslation data) { //TODO
+            pushSpan(functionCallTree);
+            Node value = data.readVariable(functionCallTree.name().name(), data.currentBlock());
+            popSpan();
+            return Optional.of(value);
+        }
+
+        @Override
         public Optional<Node> visit(LiteralTree literalTree, SsaTranslation data) {
             pushSpan(literalTree);
             Node node = data.constructor.newConstInt((int) literalTree.parseValue().orElseThrow());

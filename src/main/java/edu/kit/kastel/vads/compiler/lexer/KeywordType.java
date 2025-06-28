@@ -22,6 +22,7 @@ public enum KeywordType {
   VOID("void"),
   CHAR("char"),
   STRING("string"),
+  FLUSH("flush")
   ;
 
   private final String keyword;

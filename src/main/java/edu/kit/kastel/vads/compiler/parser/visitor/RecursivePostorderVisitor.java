@@ -21,6 +21,17 @@ public class RecursivePostorderVisitor<T, R> implements Visitor<T, R> {
     }
 
     @Override
+    public R visit(FunctionCallTree functionCall, T data) {
+        R r = functionCall.name().accept(this, data);
+        for (ExpressionTree argument : functionCall.arguments()) {
+            r = argument.accept(this, accumulate(data, r));
+        }
+        r = this.visitor.visit(functionCall, accumulate(data, r));
+        return r;
+    }
+
+
+    @Override
     public R visit(BinaryOperationTree binaryOperationTree, T data) {
         R r = binaryOperationTree.lhs().accept(this, data);
         r = binaryOperationTree.rhs().accept(this, accumulate(data, r));
