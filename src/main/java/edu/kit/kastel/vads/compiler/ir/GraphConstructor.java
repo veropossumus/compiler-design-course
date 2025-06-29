@@ -6,6 +6,7 @@ import edu.kit.kastel.vads.compiler.parser.symbol.Name;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -256,5 +257,13 @@ class GraphConstructor {
 
     public Node newLogicalNot(Node operand) {
         return this.optimizer.transform(new LogicalNotNode(currentBlock(), operand));
+    }
+
+    public Node newCall(String functionName, List<Node> arguments) {
+        return new CallNode(currentBlock(), readCurrentSideEffect(), functionName, arguments);
+    }
+
+    public Node newParameter(String parameterName, int parameterIndex) {
+        return new ParameterNode(currentBlock(), parameterName, parameterIndex);
     }
 }

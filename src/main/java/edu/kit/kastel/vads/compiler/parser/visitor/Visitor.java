@@ -45,4 +45,10 @@ public interface Visitor<T, R> {
     R visit(BoolLiteralTree boolLiteralTree, T data);
 
     R visit(LogicalNotTree logicalNotTree, T data);
+
+    R visit(ParameterTree parameterTree, T data);
+
+    R visit(FunctionCallTree functionCallTree, T data);
+
+    R visit(FunctionCallStatementTree functionCallStatementTree, T data);
 }

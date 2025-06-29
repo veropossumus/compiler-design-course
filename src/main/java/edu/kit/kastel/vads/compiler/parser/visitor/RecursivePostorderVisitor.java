@@ -55,6 +55,9 @@ public class RecursivePostorderVisitor<T, R> implements Visitor<T, R> {
     public R visit(FunctionTree functionTree, T data) {
         R r = functionTree.returnType().accept(this, data);
         r = functionTree.name().accept(this, accumulate(data, r));
+        for (ParameterTree parameter : functionTree.parameters()) {
+            r = parameter.accept(this, accumulate(data, r));
+        }
         r = functionTree.body().accept(this, accumulate(data, r));
         r = this.visitor.visit(functionTree, accumulate(data, r));
         return r;
@@ -172,6 +175,31 @@ public class RecursivePostorderVisitor<T, R> implements Visitor<T, R> {
         r = ternaryOperationTree.trueExpression().accept(this, accumulate(data, r));
         r = ternaryOperationTree.falseExpression().accept(this, accumulate(data, r));
         r = this.visitor.visit(ternaryOperationTree, accumulate(data, r));
+        return r;
+    }
+
+    @Override
+    public R visit(FunctionCallTree functionCallTree, T data) {
+        R r = functionCallTree.functionName().accept(this, data);
+        for (ExpressionTree argument : functionCallTree.arguments()) {
+            r = argument.accept(this, accumulate(data, r));
+        }
+        r = this.visitor.visit(functionCallTree, accumulate(data, r));
+        return r;
+    }
+
+    @Override
+    public R visit(FunctionCallStatementTree functionCallStatementTree, T data) {
+        R r = functionCallStatementTree.functionCall().accept(this, data);
+        r = this.visitor.visit(functionCallStatementTree, accumulate(data, r));
+        return r;
+    }
+
+    @Override
+    public R visit(ParameterTree parameterTree, T data) {
+        R r = parameterTree.type().accept(this, data);
+        r = parameterTree.name().accept(this, accumulate(data, r));
+        r = this.visitor.visit(parameterTree, accumulate(data, r));
         return r;
     }
 

@@ -112,7 +112,7 @@ class VariableStatusAnalysis implements NoOpVisitor<Namespace<VariableStatusAnal
             forLoopTree.update().accept(this, loopScope);
         }
 
-        Namespace<VariableStatus> parentScope = loopScope.exitScope();
+        loopScope.exitScope();
 
         return Unit.INSTANCE;
     }
@@ -153,6 +153,38 @@ class VariableStatusAnalysis implements NoOpVisitor<Namespace<VariableStatusAnal
             ifTree.elseBranch().accept(this, elseScope);
         }
 
+        return Unit.INSTANCE;
+    }
+
+    @Override
+    public Unit visit(FunctionCallTree functionCallTree, Namespace<VariableStatus> data) {
+        // Visit all arguments to check variable status
+        for (ExpressionTree argument : functionCallTree.arguments()) {
+            argument.accept(this, data);
+        }
+        return Unit.INSTANCE;
+    }
+
+    @Override
+    public Unit visit(ParameterTree parameterTree, Namespace<VariableStatus> data) {
+        // Parameters are automatically initialized when the function is called
+        data.putInCurrentScope(parameterTree.name(), VariableStatus.INITIALIZED);
+        return Unit.INSTANCE;
+    }
+
+    @Override
+    public Unit visit(FunctionTree functionTree, Namespace<VariableStatus> data) {
+        // Create a new scope for the function
+        Namespace<VariableStatus> functionScope = data.enterScope();
+        
+        // Add parameters to the function scope
+        for (ParameterTree parameter : functionTree.parameters()) {
+            parameter.accept(this, functionScope);
+        }
+        
+        // Visit the function body
+        functionTree.body().accept(this, functionScope);
+        
         return Unit.INSTANCE;
     }
 }

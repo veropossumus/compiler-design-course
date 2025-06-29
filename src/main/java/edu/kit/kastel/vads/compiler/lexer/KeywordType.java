@@ -15,6 +15,7 @@ public enum KeywordType {
   NULL("NULL"),
   PRINT("print"),
   READ("read"),
+  FLUSH("flush"),
   ALLOC("alloc"),
   ALLOC_ARRAY("alloc_array"),
   INT("int"),

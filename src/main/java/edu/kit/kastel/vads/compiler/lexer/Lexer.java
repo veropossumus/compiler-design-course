@@ -36,6 +36,7 @@ public class Lexer {
             case '{' -> separator(SeparatorType.BRACE_OPEN);
             case '}' -> separator(SeparatorType.BRACE_CLOSE);
             case ';' -> separator(SeparatorType.SEMICOLON);
+            case ',' -> separator(SeparatorType.COMMA);
 
             case '=' -> {
                 if (hasMore(1) && peek(1) == '=') yield new Operator(OperatorType.COMPARE_EQUAL, buildSpan(2));

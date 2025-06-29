@@ -12,6 +12,7 @@ import edu.kit.kastel.vads.compiler.parser.symbol.Name;
 import edu.kit.kastel.vads.compiler.parser.visitor.Visitor;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
@@ -110,6 +111,42 @@ public class SsaTranslation {
         }
 
         @Override
+        public Optional<Node> visit(FunctionCallStatementTree functionCallStatementTree, SsaTranslation data) {
+            pushSpan(functionCallStatementTree);
+            functionCallStatementTree.functionCall().accept(this, data);
+            popSpan();
+            return NOT_AN_EXPRESSION;
+        }
+
+        @Override
+        public Optional<Node> visit(FunctionCallTree functionCallTree, SsaTranslation data) {
+            pushSpan(functionCallTree);
+            
+            String functionName = functionCallTree.functionName().name().asString();
+            
+            List<Node> argumentNodes = new ArrayList<>();
+            for (ExpressionTree argument : functionCallTree.arguments()) {
+                Node argNode = argument.accept(this, data).orElseThrow();
+                argumentNodes.add(argNode);
+            }
+            
+            Node callNode = data.constructor.newCall(functionName, argumentNodes);
+            data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(callNode));
+            Node result = data.constructor.newResultProj(callNode);
+            
+            popSpan();
+            return Optional.of(result);
+        }
+
+        @Override
+        public Optional<Node> visit(ParameterTree parameterTree, SsaTranslation data) {
+            pushSpan(parameterTree);
+            popSpan();
+            // bc it should not be called directly
+            return NOT_AN_EXPRESSION;
+        }
+
+        @Override
         public Optional<Node> visit(BinaryOperationTree binaryOperationTree, SsaTranslation data) {
             pushSpan(binaryOperationTree);
             Node lhs = binaryOperationTree.lhs().accept(this, data).orElseThrow();
@@ -171,6 +208,14 @@ public class SsaTranslation {
             pushSpan(functionTree);
             Node start = data.constructor.newStart();
             data.constructor.writeCurrentSideEffect(data.constructor.newSideEffectProj(start));
+            
+            for (int i = 0; i < functionTree.parameters().size(); i++) {
+                ParameterTree param = functionTree.parameters().get(i);
+                String paramName = param.name().name().asString();
+                Node paramNode = data.constructor.newParameter(paramName, i);
+                data.writeVariable(param.name().name(), data.currentBlock(), paramNode);
+            }
+            
             functionTree.body().accept(this, data);
             popSpan();
             return NOT_AN_EXPRESSION;
@@ -306,11 +351,23 @@ public class SsaTranslation {
         public Optional<Node> visit(IfTree ifTree, SsaTranslation data) {
             pushSpan(ifTree);
             Node condition = ifTree.condition().accept(this, data).orElseThrow();
-            Node thenBlock = ifTree.thenBranch().accept(this, data).orElseThrow();
+            
+            Optional<Node> thenResult = ifTree.thenBranch().accept(this, data);
+            Node thenBlock;
+            if (thenResult.isPresent()) {
+                thenBlock = thenResult.get();
+            } else {
+                thenBlock = data.constructor.currentBlock();
+            }
 
             Node elseBlock;
             if (ifTree.elseBranch() != null) {
-                elseBlock = ifTree.elseBranch().accept(this, data).orElseThrow();
+                Optional<Node> elseResult = ifTree.elseBranch().accept(this, data);
+                if (elseResult.isPresent()) {
+                    elseBlock = elseResult.get();
+                } else {
+                    elseBlock = data.constructor.currentBlock();
+                }
             } else {
                 elseBlock = data.constructor.currentBlock();
             }

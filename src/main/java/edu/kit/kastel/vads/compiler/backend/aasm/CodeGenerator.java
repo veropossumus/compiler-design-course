@@ -12,6 +12,7 @@ import java.util.Set;
 import static edu.kit.kastel.vads.compiler.ir.util.NodeSupport.predecessorSkipProj;
 
 public class CodeGenerator {
+    private static final String[] ARG_REGISTERS = { "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" };
 
     private static class PhysicalRegisterMapper {
         private static final String[] PHYSICAL_REGISTERS = { "%ebx", "%ecx", "%esi", "%edi" };
@@ -28,31 +29,42 @@ public class CodeGenerator {
         StringBuilder builder = new StringBuilder();
 
         builder.append(".section .text\n")
-                .append(".global main\n")
-                .append(".global _main\n")
-                .append("main:\n")
+                .append(".global main\n");
+
+        for (IrGraph graph : program) {
+            builder.append(".global _").append(graph.name()).append("\n");
+        }
+
+        builder.append("main:\n")
                 .append("    call _main\n")
                 .append("    movq %rax, %rdi\n")
                 .append("    movq $0x3C, %rax\n")
-                .append("    syscall\n")
-                .append("_main:\n")
-                .append("    pushq %rbp\n")
+                .append("    syscall\n");
+
+        for (IrGraph graph : program) {
+            generateFunction(graph, builder);
+        }
+
+        return builder.toString();
+    }
+
+    private void generateFunction(IrGraph graph, StringBuilder builder) {
+        builder.append("_").append(graph.name()).append(":\n");
+
+        builder.append("    pushq %rbp\n")
                 .append("    movq %rsp, %rbp\n")
                 .append("    pushq %rbx\n")
                 .append("    subq $32, %rsp\n");
 
-        for (IrGraph graph : program) {
-            AasmRegisterAllocator allocator = new AasmRegisterAllocator();
-            Map<Node, Register> registers = allocator.allocateRegisters(graph);
-            generateForGraph(graph, builder, registers);
-        }
+        AasmRegisterAllocator allocator = new AasmRegisterAllocator();
+        Map<Node, Register> registers = allocator.allocateRegisters(graph);
+        generateForGraph(graph, builder, registers);
 
         builder.append("    addq $32, %rsp\n")
                 .append("    popq %rbx\n")
                 .append("    movq %rbp, %rsp\n")
                 .append("    popq %rbp\n")
                 .append("    ret\n");
-        return builder.toString();
     }
 
     private void generateForGraph(IrGraph graph, StringBuilder builder, Map<Node, Register> registers) {
@@ -101,6 +113,8 @@ public class CodeGenerator {
 
             case LogicalAndNode logicalAnd -> generateLogicalAnd(builder, registers, logicalAnd);
             case LogicalOrNode logicalOr -> generateLogicalOr(builder, registers, logicalOr);
+            case CallNode callNode -> generateCall(builder, registers, callNode);
+            case ParameterNode parameterNode -> generateParameter(builder, registers, parameterNode);
 
             case Phi _ -> throw new UnsupportedOperationException("phi");
             case Block _,ProjNode _,StartNode _ -> {
@@ -123,18 +137,17 @@ public class CodeGenerator {
         String right = PhysicalRegisterMapper.map(registers.get(rightNode));
         String result = PhysicalRegisterMapper.map(registers.get(node));
 
-
         builder.append("    cmpl ")
-               .append(right)
-               .append(", ")
-               .append(left)
-               .append("\n");
+                .append(right)
+                .append(", ")
+                .append(left)
+                .append("\n");
         builder.append("    ")
-               .append(setInstr)
-               .append(" %al\n");
+                .append(setInstr)
+                .append(" %al\n");
         builder.append("    movzbl %al, ")
-               .append(result)
-               .append("\n");
+                .append(result)
+                .append("\n");
     }
 
     private static void binary(
@@ -154,11 +167,12 @@ public class CodeGenerator {
                 case "subl" -> lc.value() - rc.value();
                 case "imull" -> lc.value() * rc.value();
                 case "andl" -> lc.value() & rc.value();
-                case "orl"  -> lc.value() | rc.value();
+                case "orl" -> lc.value() | rc.value();
                 case "xorl" -> lc.value() ^ rc.value();
                 case "shll" -> lc.value() << rc.value();
                 case "shrl" -> lc.value() >>> rc.value();
-                default -> throw new IllegalStateException("unknown opcode in binary: " + opcode + " for node " + node.getClass().getSimpleName());
+                default -> throw new IllegalStateException(
+                        "unknown opcode in binary: " + opcode + " for node " + node.getClass().getSimpleName());
             };
             builder.append("    movl $").append(folded).append(", ").append(result).append("\n");
             return;
@@ -276,7 +290,8 @@ public class CodeGenerator {
                 }
                 break;
             default:
-                throw new IllegalStateException("unknown opcode in binary: " + opcode + " for node " + node.getClass().getSimpleName());
+                throw new IllegalStateException(
+                        "unknown opcode in binary: " + opcode + " for node " + node.getClass().getSimpleName());
         }
     }
 
@@ -320,9 +335,9 @@ public class CodeGenerator {
         String resultRegister = PhysicalRegisterMapper.map(
                 registers.get(predecessorSkipProj(node, ReturnNode.RESULT)));
 
-        builder.append("    movl ")
+        builder.append("    movq ")
                 .append(resultRegister)
-                .append(", %eax\n");
+                .append(", %rax\n");
     }
 
     private void generateConstant(StringBuilder builder, Map<Node, Register> registers, ConstIntNode node) {
@@ -335,25 +350,26 @@ public class CodeGenerator {
                 .append("\n");
     }
 
-    // private void generateBoolConstant(StringBuilder builder, Map<Node, Register> registers, ConstBoolNode node) {
-    //     String dest = PhysicalRegisterMapper.map(registers.get(node));
+    // private void generateBoolConstant(StringBuilder builder, Map<Node, Register>
+    // registers, ConstBoolNode node) {
+    // String dest = PhysicalRegisterMapper.map(registers.get(node));
 
-    //     builder.append("    movl $")
-    //             .append(node.value())
-    //             .append(", ")
-    //             .append(dest)
-    //             .append("\n");
+    // builder.append(" movl $")
+    // .append(node.value())
+    // .append(", ")
+    // .append(dest)
+    // .append("\n");
     // }
 
     private void generateBoolConstant(StringBuilder builder, Map<Node, Register> registers, ConstBoolNode node) {
-    String dest = PhysicalRegisterMapper.map(registers.get(node));
-    int value = node.value() ? 1 : 0;
-    builder.append("    movl $")
-           .append(value) // tests dont terminate with this for some reason?
-           .append(", ")
-           .append(dest)
-           .append("\n");
-}
+        String dest = PhysicalRegisterMapper.map(registers.get(node));
+        int value = node.value() ? 1 : 0;
+        builder.append("    movl $")
+                .append(value) // tests dont terminate with this for some reason?
+                .append(", ")
+                .append(dest)
+                .append("\n");
+    }
 
     private void generateIf(StringBuilder builder, Map<Node, Register> registers, IfNode node) {
         String conditionRegister = PhysicalRegisterMapper.map(
@@ -422,8 +438,8 @@ public class CodeGenerator {
 
     private void generateContinue(StringBuilder builder, ContinueNode continueNode) {
         builder.append("    jmp ")
-               .append(continueNode.loopHeadLabel())
-               .append("\n");
+                .append(continueNode.loopHeadLabel())
+                .append("\n");
     }
 
     private void generateLogicalAnd(
@@ -497,5 +513,116 @@ public class CodeGenerator {
         builder.append("    cmpl $0, ").append(src).append("\n");
         builder.append("    sete %al\n");
         builder.append("    movzbl %al, ").append(dest).append("\n");
+    }
+
+    private void generateCall(
+            StringBuilder builder,
+            Map<Node, Register> registers,
+            CallNode callNode) {
+
+        String functionName = callNode.functionName();
+        List<Node> arguments = callNode.arguments();
+
+        if (functionName.equals("print")) {
+            if (arguments.size() != 1) {
+                throw new IllegalArgumentException("print expects exactly one argument");
+            }
+
+            String argReg = PhysicalRegisterMapper.map(registers.get(arguments.get(0)));
+            builder.append("    movq ").append(argReg).append(", %rdi\n");
+            builder.append("    call putchar\n");
+            builder.append("    movq $0, %rdi\n");
+            builder.append("    call fflush\n");
+
+            Register destReg = registers.get(callNode);
+            if (destReg != null) {
+                String dest = PhysicalRegisterMapper.map(destReg);
+                builder.append("    movq $0, ").append(dest).append("\n");
+            }
+            return;
+        }
+
+        if (functionName.equals("read")) {
+            if (!arguments.isEmpty()) {
+                throw new IllegalArgumentException("read expects no arguments");
+            }
+            builder.append("    call getchar\n");
+            Register destReg = registers.get(callNode);
+            if (destReg != null) {
+                String dest = PhysicalRegisterMapper.map(destReg);
+                builder.append("    movq %rax, ").append(dest).append("\n");
+            }
+            return;
+        }
+
+        if (functionName.equals("flush")) {
+            if (!arguments.isEmpty()) {
+                throw new IllegalArgumentException("flush expects no arguments");
+            }
+            builder.append("    movq $0, %rdi\n");
+            builder.append("    call fflush\n");
+
+            Register destReg = registers.get(callNode);
+            if (destReg != null) {
+                String dest = PhysicalRegisterMapper.map(destReg);
+                builder.append("    movq $0, ").append(dest).append("\n");
+            }
+            return;
+        }
+
+        int stackArgs = Math.max(0, arguments.size() - ARG_REGISTERS.length);
+        int stackBytes = stackArgs * 8;
+        if (stackBytes % 16 != 0) {
+            stackBytes += 16 - (stackBytes % 16); // align to 16 bytes
+        }
+
+        if (stackBytes > 0) {
+            builder.append("    subq $").append(stackBytes).append(", %rsp\n");
+        }
+
+        for (int i = arguments.size() - 1; i >= ARG_REGISTERS.length; i--) {
+            String argReg = PhysicalRegisterMapper.map(registers.get(arguments.get(i)));
+            int offset = (i - ARG_REGISTERS.length) * 8;
+            builder.append("    movq ").append(argReg).append(", ").append(offset).append("(%rsp)\n");
+        }
+
+        for (int i = 0; i < Math.min(arguments.size(), ARG_REGISTERS.length); i++) {
+            String argReg = PhysicalRegisterMapper.map(registers.get(arguments.get(i)));
+            builder.append("    movq ").append(argReg).append(", ").append(ARG_REGISTERS[i]).append("\n");
+        }
+
+        builder.append("    call _").append(functionName).append("\n");
+
+        if (stackBytes > 0) {
+            builder.append("    addq $").append(stackBytes).append(", %rsp\n");
+        }
+
+        Register destReg = registers.get(callNode);
+        if (destReg != null) {
+            String dest = PhysicalRegisterMapper.map(destReg);
+            builder.append("    movq %rax, ").append(dest).append("\n");
+        }
+    }
+
+    private void generateParameter(
+            StringBuilder builder,
+            Map<Node, Register> registers,
+            ParameterNode parameterNode) {
+
+        Register destReg = registers.get(parameterNode);
+        if (destReg == null) {
+            return;
+        }
+
+        String dest = PhysicalRegisterMapper.map(destReg);
+        int paramIndex = parameterNode.parameterIndex();
+
+        if (paramIndex < ARG_REGISTERS.length) {
+            builder.append("    movq ").append(ARG_REGISTERS[paramIndex]).append(", ").append(dest).append("\n");
+        } else {
+            int stackIndex = paramIndex - ARG_REGISTERS.length;
+            int stackOffset = 16 + (stackIndex * 8);
+            builder.append("    movq ").append(stackOffset).append("(%rbp), ").append(dest).append("\n");
+        }
     }
 }

@@ -66,4 +66,16 @@ class ReturnAnalysis implements NoOpVisitor<ReturnAnalysis.ReturnState> {
 
         return NoOpVisitor.super.visit(blockTree, data);
     }
+
+    @Override
+    public Unit visit(FunctionCallTree functionCallTree, ReturnState data) {
+        // Function calls don't affect return analysis
+        return NoOpVisitor.super.visit(functionCallTree, data);
+    }
+
+    @Override
+    public Unit visit(ParameterTree parameterTree, ReturnState data) {
+        // Parameters don't affect return analysis
+        return Unit.INSTANCE;
+    }
 }

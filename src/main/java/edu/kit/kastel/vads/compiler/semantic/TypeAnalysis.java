@@ -1,4 +1,3 @@
-
 package edu.kit.kastel.vads.compiler.semantic;
 import edu.kit.kastel.vads.compiler.parser.ast.*;
 import edu.kit.kastel.vads.compiler.parser.type.BasicType;
@@ -204,6 +203,8 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
     }
     @Override
     public Unit visit(FunctionTree functionTree, Types data) {
+        // Function signatures are already collected in SemanticAnalysis
+        // Just type-check the function body
         if (data.get(functionTree.body()) != TYPES.VALID) {
             throwError(functionTree, data.get(functionTree.body()), TYPES.VALID);
         }
@@ -224,6 +225,83 @@ public class TypeAnalysis implements NoOpVisitor<Types> {
         data.put(ternaryTree, trueType);
         return NoOpVisitor.super.visit(ternaryTree, data);
     }
+    @Override
+    public Unit visit(FunctionCallTree functionCallTree, Types data) {
+        String functionName = functionCallTree.functionName().name().asString();
+        
+        // Handle built-in functions
+        switch (functionName) {
+            case "print" -> {
+                if (functionCallTree.arguments().size() != 1) {
+                    throw new SemanticException("print function expects exactly 1 argument, got " + functionCallTree.arguments().size());
+                }
+                TYPES argType = data.get(functionCallTree.arguments().get(0));
+                if (argType != TYPES.INT) {
+                    throw new SemanticException("print function expects int argument, got " + argType);
+                }
+                data.put(functionCallTree, TYPES.INT); // print returns int
+            }
+            case "read" -> {
+                if (!functionCallTree.arguments().isEmpty()) {
+                    throw new SemanticException("read function expects no arguments, got " + functionCallTree.arguments().size());
+                }
+                data.put(functionCallTree, TYPES.INT); // read returns int
+            }
+            case "flush" -> {
+                if (!functionCallTree.arguments().isEmpty()) {
+                    throw new SemanticException("flush function expects no arguments, got " + functionCallTree.arguments().size());
+                }
+                data.put(functionCallTree, TYPES.INT); // flush returns int
+            }
+            default -> {
+                // Handle user-defined functions
+                if (data.hasFunctionSignature(functionName)) {
+                    FunctionSignature signature = data.getFunctionSignature(functionName);
+                    
+                    // Check argument count
+                    if (functionCallTree.arguments().size() != signature.parameterTypes().size()) {
+                        throw new SemanticException("Function " + functionName + " expects " + 
+                            signature.parameterTypes().size() + " arguments, got " + 
+                            functionCallTree.arguments().size());
+                    }
+                    
+                    // Check argument types
+                    for (int i = 0; i < functionCallTree.arguments().size(); i++) {
+                        TYPES argType = data.get(functionCallTree.arguments().get(i));
+                        TYPES expectedType = signature.parameterTypes().get(i);
+                        if (argType != expectedType) {
+                            throw new SemanticException("Function " + functionName + " argument " + i + 
+                                " expects " + expectedType + ", got " + argType);
+                        }
+                    }
+                    
+                    // Set return type
+                    data.put(functionCallTree, signature.returnType());
+                } else {
+                    throw new SemanticException("Unknown function: " + functionName);
+                }
+            }
+        }
+        
+        return NoOpVisitor.super.visit(functionCallTree, data);
+    }
+
+    @Override
+    public Unit visit(ParameterTree parameterTree, Types data) {
+        // Parameters should be treated like variable declarations in function scope
+        TYPES paramType = getType(parameterTree.type());
+        data.putByLine(parameterTree.name(), paramType, parameterTree.name().span().start().line());
+        return Unit.INSTANCE;
+    }
+
+    @Override
+    public Unit visit(FunctionCallStatementTree functionCallStatementTree, Types data) {
+        // The function call itself will be type-checked by visit(FunctionCallTree)
+        // The statement as a whole is always valid
+        data.put(functionCallStatementTree, TYPES.VALID);
+        return NoOpVisitor.super.visit(functionCallStatementTree, data);
+    }
+
     private static void throwError(Tree tree, TYPES actualType, TYPES expectedType){
         throw new SemanticException("Invalid type at " + tree.span() + ": found " + actualType + ", expected " + expectedType);
     }

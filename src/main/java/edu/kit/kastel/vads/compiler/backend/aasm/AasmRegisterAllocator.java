@@ -35,6 +35,10 @@ public class AasmRegisterAllocator implements RegisterAllocator {
     }
 
     private static boolean needsRegister(Node node) {
-        return !(node instanceof ProjNode || node instanceof StartNode || node instanceof Block || node instanceof ReturnNode);
+        // Handle ProjNode specially - RESULT projections need registers, SIDE_EFFECT projections don't
+        if (node instanceof ProjNode projNode) {
+            return projNode.projectionInfo() == ProjNode.SimpleProjectionInfo.RESULT;
+        }
+        return !(node instanceof StartNode || node instanceof Block || node instanceof ReturnNode);
     }
 }

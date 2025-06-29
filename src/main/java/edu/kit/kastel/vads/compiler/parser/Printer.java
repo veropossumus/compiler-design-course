@@ -38,16 +38,23 @@ public class Printer {
                 this.indentDepth--;
                 print("}");
             }
-            case FunctionTree(var returnType, var name, var body) -> {
+            case FunctionTree(var returnType, var name, var parameters, var body) -> {
                 printTree(returnType);
                 space();
                 printTree(name);
-                print("()");
+                print("(");
+                for (int i = 0; i < parameters.size(); i++) {
+                    if (i > 0) {
+                        print(", ");
+                    }
+                    printTree(parameters.get(i));
+                }
+                print(")");
                 space();
                 printTree(body);
             }
             case NameTree(var name, _) -> print(name.asString());
-            case ProgramTree(var topLevelTrees, var scope) -> {
+            case ProgramTree(var topLevelTrees, var _) -> {
                 for (FunctionTree function : topLevelTrees) {
                     printTree(function);
                     lineBreak();
@@ -102,7 +109,7 @@ public class Printer {
                 semicolon();
             }
             case LValueIdentTree(var name) -> printTree(name);
-            case IdentExpressionTree(var name, var block) -> printTree(name);
+            case IdentExpressionTree(var name, var _) -> printTree(name);
             case WhileTree(var condition, var body, _) -> {
                 print("while (");
                 printTree(condition);
@@ -153,6 +160,28 @@ public class Printer {
                 printTree(thenBranch);
                 print(" : ");
                 printTree(elseBranch);
+            }
+            case FunctionCallTree(var functionName, var arguments, _) -> {
+                printTree(functionName);
+                print("(");
+                for (int i = 0; i < arguments.size(); i++) {
+                    if (i > 0) {
+                        print(", ");
+                    }
+                    printTree(arguments.get(i));
+                }
+                print(")");
+            }
+
+            case FunctionCallStatementTree(var functionCall) -> {
+                printTree(functionCall);
+                semicolon();
+            }
+
+            case ParameterTree(var type, var name) -> {
+                printTree(type);
+                space();
+                printTree(name);
             }
 
         }
